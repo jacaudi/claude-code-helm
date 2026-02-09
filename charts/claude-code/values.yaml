@@ -1,0 +1,122 @@
+# Claude Code Helm Chart Values
+
+# -- Override the name of the chart
+nameOverride: ""
+# -- Override the full name of the release
+fullnameOverride: ""
+
+# Image configuration
+image:
+  # -- Container image repository. This image must already contain the `claude` binary.
+  repository: ghcr.io/chrisbattarbee/claude-code
+  # -- Container image tag. Pin this to an explicit Claude Code version tag.
+  tag: "2.1.37"
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+
+# -- Image pull secrets for private registries
+imagePullSecrets: []
+
+# Runtime command configuration
+# Default keeps the pod alive so you can exec in and run `claude`.
+command:
+  - sh
+  - -lc
+  - sleep infinity
+
+# -- Optional args passed to the command
+extraArgs: []
+
+# -- Non-secret environment variables
+env: {}
+# Example:
+# env:
+#   TZ: UTC
+#   NODE_ENV: production
+
+# Credentials and secret wiring
+credentials:
+  # -- Use an existing secret instead of creating one
+  existingSecret: ""
+  # -- Anthropic API key; used when generating a chart-managed secret
+  anthropicApiKey: ""
+  # -- Additional key/value pairs to include in the chart-managed secret
+  secretData: {}
+  # Example:
+  # secretData:
+  #   ANTHROPIC_BASE_URL: "https://your-endpoint.example"
+
+# Persistence configuration for HOME
+persistence:
+  # -- Enable persistent storage for /home/node
+  enabled: true
+  # -- Storage size
+  size: 5Gi
+  # -- Storage class (leave empty for default)
+  storageClass: ""
+  # -- Access mode
+  accessMode: ReadWriteOnce
+  # -- Annotations for the PVC
+  annotations: {}
+  # -- Use an existing PVC instead of creating one
+  existingClaim: ""
+
+# Resource requests and limits for the Claude container
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+# Security context for the pod
+podSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+# Security context for the Claude container
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- Keep stdin open for interactive kubectl exec sessions
+stdin: true
+# -- Allocate a TTY for interactive kubectl exec sessions
+tty: true
+
+# Service account configuration
+serviceAccount:
+  # -- Create a service account
+  create: true
+  # -- Service account name (auto-generated if empty)
+  name: ""
+  # -- Annotations for the service account
+  annotations: {}
+
+# -- Node selector for pod scheduling
+nodeSelector: {}
+
+# -- Tolerations for pod scheduling
+tolerations: []
+
+# -- Affinity rules for pod scheduling
+affinity: {}
+
+# -- Annotations for the pod
+podAnnotations: {}
+
+# -- Labels for the pod
+podLabels: {}
