@@ -15,6 +15,9 @@ ARG GO_VERSION=1.26.3
 # renovate: datasource=docker depName=ghcr.io/astral-sh/uv
 ARG UV_VERSION=0.11.13
 
+# renovate: datasource=docker depName=oven/bun
+ARG BUN_VERSION=1.3.13
+
 ############################################
 # Stage 1: fetch and verify Claude Code
 ############################################
@@ -47,6 +50,7 @@ RUN set -eu; \
 ############################################
 FROM public.ecr.aws/docker/library/golang:${GO_VERSION}-alpine AS go-source
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv-source
+FROM docker.io/oven/bun:${BUN_VERSION} AS bun-source
 
 ############################################
 # Stage 3: build claude-pod-logger
@@ -64,6 +68,7 @@ FROM public.ecr.aws/docker/library/debian:${DEBIAN_VERSION}
 ARG CLAUDE_CODE_VERSION
 ARG GO_VERSION
 ARG UV_VERSION
+ARG BUN_VERSION
 ARG BUILD_DATE
 ARG VCS_REF
 
@@ -98,6 +103,11 @@ COPY --from=go-source /usr/local/go /usr/local/go
 
 # uv / uvx — copied from Astral's distroless image.
 COPY --from=uv-source /uv /uvx /usr/local/bin/
+
+# bun — copied from the official oven/bun image. `bunx` ships as a
+# symlink to /usr/local/bin/bun, which we recreate after the copy.
+COPY --from=bun-source /usr/local/bin/bun /usr/local/bin/bun
+RUN ln -sf /usr/local/bin/bun /usr/local/bin/bunx
 
 # Claude Code native binary — verified above.
 COPY --from=claude-fetcher /out/claude /usr/local/bin/claude
@@ -159,7 +169,7 @@ ENV GOROOT=/usr/local/go \
 WORKDIR /home/claude
 
 LABEL org.opencontainers.image.title="claude-pod" \
-      org.opencontainers.image.description="Claude Code native binary on Debian with developer tooling, Go ${GO_VERSION}, and uv ${UV_VERSION}" \
+      org.opencontainers.image.description="Claude Code native binary on Debian with developer tooling, Go ${GO_VERSION}, uv ${UV_VERSION}, and bun ${BUN_VERSION}" \
       org.opencontainers.image.source="https://github.com/jacaudi/claude-code-helm" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${VCS_REF}" \

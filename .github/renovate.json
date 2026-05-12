@@ -8,7 +8,7 @@
   "packageRules": [
     {
       "matchManagers": ["custom.regex"],
-      "matchDepNames": ["golang", "ghcr.io/astral-sh/uv"],
+      "matchDepNames": ["golang", "ghcr.io/astral-sh/uv", "oven/bun"],
       "semanticCommitType": "chore",
       "semanticCommitScope": "containerfile"
     },
@@ -60,6 +60,13 @@
       "fileMatch": ["(^|/)Containerfile$"],
       "matchStrings": [
         "#\\s*renovate:\\s*datasource=(?<datasource>docker)\\s+depName=(?<depName>ghcr\\.io/astral-sh/uv)\\s*\\nARG\\s+UV_VERSION=(?<currentValue>\\S+)"
+      ]
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["(^|/)Containerfile$"],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>docker)\\s+depName=(?<depName>oven/bun)\\s*\\nARG\\s+BUN_VERSION=(?<currentValue>\\S+)"
       ]
     },
     {
