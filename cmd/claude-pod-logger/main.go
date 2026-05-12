@@ -235,8 +235,8 @@ func streamRange(path string, offset int64, w io.Writer, f format, verbose bool)
 
 // renderLine decides whether to emit a JSONL line and how to render it.
 // Returns (output bytes including trailing \n, true) to emit, or
-// (nil, false) to skip. Text prefixes: 👤 user, `<` assistant text,
-// 🔧 tool use, 📝 summary.
+// (nil, false) to skip. Text prefixes: 👤 user, 🦀 assistant (Clawd,
+// Claude Code's mascot), 🔧 tool use, 📝 summary.
 func renderLine(line []byte, f format, verbose bool) ([]byte, bool) {
 	if verbose {
 		return appendNewline(line), true
@@ -328,7 +328,7 @@ func renderAssistant(m map[string]any) string {
 		switch t, _ := bb["type"].(string); t {
 		case "text":
 			if s, _ := bb["text"].(string); strings.TrimSpace(s) != "" {
-				parts = append(parts, "< "+s)
+				parts = append(parts, "🦀 "+s)
 			}
 		case "tool_use":
 			name, _ := bb["name"].(string)

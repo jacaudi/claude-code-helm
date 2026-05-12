@@ -28,9 +28,22 @@
       "matchManagers": ["helmv3"],
       "matchPackageNames": ["common"],
       "semanticCommitType": "chore",
-      "semanticCommitScope": "chart"
+      "semanticCommitScope": "chart",
+      "postUpgradeTasks": {
+        "commands": [
+          "helm dependency update charts/claude-pod"
+        ],
+        "fileFilters": [
+          "charts/claude-pod/Chart.lock",
+          "charts/claude-pod/charts/**"
+        ],
+        "executionMode": "update"
+      }
     }
   ],
+  "helmv3": {
+    "fileMatch": ["(^|/)charts/[^/]+/Chart\\.yaml$"]
+  },
   "dockerfile": {
     "fileMatch": ["(^|/)Containerfile$", "(^|/)Dockerfile$"]
   },
