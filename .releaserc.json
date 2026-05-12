@@ -1,0 +1,59 @@
+{
+  "branches": ["main"],
+  "tagFormat": "v${version}",
+  "plugins": [
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "releaseRules": [
+          { "breaking": true, "release": "minor" },
+          { "type": "refactor", "release": "patch" },
+          { "type": "chore", "scope": "deps", "release": "patch" },
+          { "type": "chore", "scope": "containerfile", "release": "patch" },
+          { "type": "chore", "scope": "claude-code", "release": "patch" },
+          { "type": "chore", "scope": "chart", "release": "patch" }
+        ]
+      }
+    ],
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "presetConfig": {
+          "types": [
+            { "type": "feat", "section": "Features" },
+            { "type": "fix", "section": "Bug Fixes" },
+            { "type": "refactor", "section": "Refactors" },
+            { "type": "chore", "scope": "deps", "section": "Dependencies" },
+            { "type": "chore", "scope": "containerfile", "section": "Image" },
+            { "type": "chore", "scope": "claude-code", "section": "Claude Code" },
+            { "type": "chore", "scope": "chart", "section": "Chart" }
+          ]
+        },
+        "writerOpts": {
+          "headerPartial": "## {{#if @root.linkCompare~}}[{{version}}]({{@root.host}}/{{@root.owner}}/{{@root.repository}}/compare/{{previousTag}}...{{currentTag}}){{~else}}{{~version}}{{~/if}} ({{date}})"
+        }
+      }
+    ],
+    [
+      "@semantic-release/changelog",
+      {
+        "changelogFile": "CHANGELOG.md",
+        "changelogTitle": "# Changelog"
+      }
+    ],
+    [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "sed -i 's/^version:.*/version: ${nextRelease.version}/' charts/claude-pod/Chart.yaml && sed -i 's/^appVersion:.*/appVersion: \"${nextRelease.version}\"/' charts/claude-pod/Chart.yaml && sed -i 's|tag: \"[^\"]*\"|tag: \"v${nextRelease.version}\"|' charts/claude-pod/values.yaml"
+      }
+    ],
+    [
+      "@semantic-release/git",
+      {
+        "assets": ["CHANGELOG.md", "charts/claude-pod/Chart.yaml", "charts/claude-pod/values.yaml"],
+        "message": "release: v${nextRelease.version} [skip ci]"
+      }
+    ],
+    "@semantic-release/github"
+  ]
+}

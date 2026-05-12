@@ -1,0 +1,26 @@
+claude-pod has been deployed in namespace {{ .Release.Namespace }}.
+
+Wait for the pod to be ready:
+
+  kubectl wait --namespace {{ .Release.Namespace }} \
+    --for=condition=ready pod \
+    -l app.kubernetes.io/instance={{ .Release.Name }} \
+    --timeout=120s
+
+Open a shell in the pod:
+
+  kubectl exec -it --namespace {{ .Release.Namespace }} \
+    "$(kubectl get pod --namespace {{ .Release.Namespace }} \
+      -l app.kubernetes.io/instance={{ .Release.Name }} \
+      -o name | head -n1)" -- zsh
+
+Run Claude Code inside a persistent tmux session so the conversation
+survives if the kubectl exec connection drops:
+
+  claude-tmux
+
+Detach with `Ctrl-b d`. Reattach by re-running `claude-tmux` from a fresh
+`kubectl exec`.
+
+By default /home/claude is backed by a PersistentVolumeClaim, so login state
+and ~/.claude survive pod restarts.

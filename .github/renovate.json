@@ -1,0 +1,74 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":dependencyDashboard"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": ["custom.regex"],
+      "matchDepNames": ["golang", "ghcr.io/astral-sh/uv"],
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "containerfile"
+    },
+    {
+      "matchManagers": ["custom.regex"],
+      "matchDepNames": ["@anthropic-ai/claude-code"],
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "claude-code"
+    },
+    {
+      "matchManagers": ["dockerfile", "custom.regex"],
+      "matchPackageNames": ["archlinux", "alpine"],
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "containerfile"
+    },
+    {
+      "matchManagers": ["helmv3"],
+      "matchPackageNames": ["common"],
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "chart"
+    }
+  ],
+  "dockerfile": {
+    "fileMatch": ["(^|/)Containerfile$", "(^|/)Dockerfile$"]
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["(^|/)Containerfile$"],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>docker)\\s+depName=(?<depName>golang)\\s*\\nARG\\s+GO_VERSION=(?<currentValue>\\S+)"
+      ]
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["(^|/)Containerfile$"],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>docker)\\s+depName=(?<depName>ghcr\\.io/astral-sh/uv)\\s*\\nARG\\s+UV_VERSION=(?<currentValue>\\S+)"
+      ]
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["(^|/)Containerfile$"],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>npm)\\s+depName=(?<depName>@anthropic-ai/claude-code)\\s*\\nARG\\s+CLAUDE_CODE_VERSION=(?<currentValue>\\S+)"
+      ]
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["(^|/)Containerfile$"],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>docker)\\s+depName=(?<depName>archlinux)\\s*\\nARG\\s+ARCH_VERSION=(?<currentValue>\\S+)"
+      ]
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["(^|/)Containerfile$"],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>docker)\\s+depName=(?<depName>alpine)\\s*\\nARG\\s+ALPINE_VERSION=(?<currentValue>\\S+)"
+      ]
+    }
+  ]
+}

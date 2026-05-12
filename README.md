@@ -1,144 +1,133 @@
-# Claude Code Helm Chart
+# claude-pod
 
-[![Helm 3](https://img.shields.io/badge/Helm-3.0+-0f1689?logo=helm&logoColor=white)](https://helm.sh/)
-[![Kubernetes 1.19+](https://img.shields.io/badge/Kubernetes-1.19+-326ce5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
+[![Helm 3](https://img.shields.io/badge/Helm-3.8+-0f1689?logo=helm&logoColor=white)](https://helm.sh/)
+[![Kubernetes 1.25+](https://img.shields.io/badge/Kubernetes-1.25+-326ce5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A Helm chart for running [Claude Code CLI](https://github.com/anthropics/claude-code) in Kubernetes as a long-lived pod with a persistent HOME directory.
+A container image and Helm chart for running the [Claude Code](https://github.com/anthropics/claude-code) native CLI in Kubernetes as a long-lived pod with a persistent `HOME` directory.
+
+- **Image**: `ghcr.io/jacaudi/claude-pod` — Arch Linux base + Claude Code native binary + Go + uv + standard developer tooling
+- **Chart**: `oci://ghcr.io/jacaudi/charts/claude-pod` — wraps the [bjw-s common library chart](https://bjw-s-labs.github.io/helm-charts/docs/common-library/)
 
 ---
 
 ## Quick Start
 
-For an in-depth installation walkthrough, see the [Claude Code on Kubernetes blog post](https://metoro.io/blog/claude-code-kubernetes).
-
 ```bash
-helm repo add claude-code https://chrisbattarbee.github.io/claude-code-helm
-helm repo update
-helm install claude claude-code/claude-code
+helm install claude-pod oci://ghcr.io/jacaudi/charts/claude-pod --version 0.2.0
 ```
 
 Wait for the pod and open a shell:
 
 ```bash
-kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=claude --timeout=120s
-kubectl exec -it deploy/claude-claude-code -c claude -- sh
-claude
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=claude-pod --timeout=120s
+kubectl exec -it deploy/claude-pod -- claude-tmux
 ```
+
+`claude-tmux` is a small wrapper that runs (or reattaches to) Claude Code
+inside a persistent tmux session, so the conversation survives if the
+`kubectl exec` connection drops. Detach with `Ctrl-b d` and reattach by
+re-running the same command. Extra args pass through to `claude`.
 
 ---
 
 ## Prerequisites
 
-- Kubernetes 1.19+
-- Helm 3.0+
-- Docker (if you want to build/publish your own image)
-
-> The chart does not install Claude Code at startup. It expects `image.repository:image.tag` to be ready-to-run (defaults to `ghcr.io/chrisbattarbee/claude-code:2.1.37`).
+- Kubernetes 1.25+
+- Helm 3.8+ (OCI support)
 
 ---
 
-## Persistence Model
+## Image
 
-By default, the chart mounts a PersistentVolumeClaim at `/home/node`. This means:
+The image is built from [`Containerfile`](Containerfile) and pinned via Renovate-tracked `ARG`s for:
 
-- `~/.claude` (auth/config/logs) persists across pod restarts
-- interactive login state survives restarts
-- any additional files in `/home/node` persist
+- the Arch Linux base tag (`datasource=docker`)
+- the Claude Code release (`datasource=npm depName=@anthropic-ai/claude-code`)
+- the Go toolchain (`datasource=golang-version`)
 
-Disable persistence if needed:
+### Install path
 
-```bash
-helm install claude claude-code/claude-code \
-  --set image.repository=<your-claude-image> \
-  --set image.tag=<your-tag> \
-  --set persistence.enabled=false
+The Claude Code binary is fetched directly from the official release bucket:
+
+```
+https://downloads.claude.ai/claude-code-releases/${CLAUDE_CODE_VERSION}/manifest.json
+https://downloads.claude.ai/claude-code-releases/${CLAUDE_CODE_VERSION}/${PLATFORM}/claude
 ```
 
+The build downloads `manifest.json`, reads the SHA256 for the target platform, downloads the binary, verifies the checksum, and installs to `/usr/local/bin/claude`. No piped `curl | bash`.
+
+### Tags
+
+- `ghcr.io/jacaudi/claude-pod:latest` — built from `main`
+- `ghcr.io/jacaudi/claude-pod:<X.Y.Z>` — built from a `claude-X.Y.Z` git tag
+- `ghcr.io/jacaudi/claude-pod:sha-<shortsha>` — built from a `main` commit
+
+Images are multi-arch (`linux/amd64`, `linux/arm64`) and include SBOM + provenance attestations.
+
 ---
 
-## Authentication Options
+## Chart
 
-### 1) Use an existing secret
+The chart is a thin wrapper over the [bjw-s common](https://bjw-s-labs.github.io/helm-charts/docs/common-library/) library chart. Everything supported by `common` is available — see [`values.yaml`](charts/claude-pod/values.yaml) for the defaults claude-pod ships.
 
-Create a secret with your provider keys:
+### Persistence
+
+By default a PVC is mounted at `/home/claude`:
+
+- `~/.claude` (auth, config, logs) persists across restarts
+- interactive login state survives restarts
+
+Disable with `--set persistence.home.enabled=false`.
+
+### Credentials
+
+#### 1) Use an existing secret
 
 ```bash
 kubectl create secret generic claude-credentials \
   --from-literal=ANTHROPIC_API_KEY=sk-ant-xxx
+
+helm install claude-pod oci://ghcr.io/jacaudi/charts/claude-pod \
+  --set-json='controllers.app.containers.app.envFrom=[{"secretRef":{"name":"claude-credentials"}}]'
 ```
 
-Install with:
+#### 2) Let the chart create the secret
 
 ```bash
-helm install claude claude-code/claude-code \
-  --set image.repository=<your-claude-image> \
-  --set image.tag=<your-tag> \
-  --set credentials.existingSecret=claude-credentials
+helm install claude-pod oci://ghcr.io/jacaudi/charts/claude-pod \
+  --set secrets.credentials.enabled=true \
+  --set secrets.credentials.stringData.ANTHROPIC_API_KEY=sk-ant-xxx \
+  --set-json='controllers.app.containers.app.envFrom=[{"secretRef":{"name":"claude-credentials"}}]'
 ```
 
-### 2) Let the chart create a secret
+#### 3) Log in interactively in the pod
 
-```bash
-helm install claude claude-code/claude-code \
-  --set image.repository=<your-claude-image> \
-  --set image.tag=<your-tag> \
-  --set credentials.anthropicApiKey=sk-ant-xxx
-```
-
-### 3) Login interactively inside the pod
-
-`claude` login artifacts are written under `/home/node/.claude` and persist because HOME is PVC-backed by default.
+`claude` writes login artifacts to `~/.claude`, which persists because `/home/claude` is PVC-backed by default.
 
 ---
 
-## Image Publishing
+## Releasing
 
-This repository includes a multi-arch image workflow at [`.github/workflows/build-image.yaml`](.github/workflows/build-image.yaml).
+Push to `main` runs the [CI/CD pipeline](.github/workflows/ci-cd.yml):
 
-- Push to `main` publishes:
-  - `ghcr.io/chrisbattarbee/claude-code:latest`
-  - `ghcr.io/chrisbattarbee/claude-code:sha-<shortsha>`
-- Push a tag named `claude-X.Y.Z` publishes:
-  - `ghcr.io/chrisbattarbee/claude-code:X.Y.Z`
-  - `ghcr.io/chrisbattarbee/claude-code:latest`
-- Images are built for both `linux/amd64` and `linux/arm64`.
+1. **Lint** — yaml + helm
+2. **semantic-release** — Conventional Commits drive the next version; `breaking` triggers a minor bump (0.x semantics), `feat` minor, `fix`/`refactor`/`chore(deps|containerfile|claude-code|chart)` patch. Bumps `version` and `appVersion` in `charts/claude-pod/Chart.yaml` and the image `tag` in `charts/claude-pod/values.yaml`.
+3. **Container** — builds multi-arch image and pushes `ghcr.io/jacaudi/claude-pod:vX.Y.Z` + `:latest`
+4. **Helm** — publishes the chart to `oci://ghcr.io/jacaudi/charts/claude-pod:X.Y.Z`
 
-Claude Code version baked into the image is controlled by the workflow:
-
-- `main` builds install `@anthropic-ai/claude-code@latest`
-- `claude-X.Y.Z` tag builds install `@anthropic-ai/claude-code@X.Y.Z`
-
-For reproducibility, Helm defaults should point to explicit version tags rather than `latest`.
-
----
-
-## Key Values
-
-| Parameter                    | Description                                         | Default        |
-| ---------------------------- | --------------------------------------------------- | -------------- |
-| `image.repository`           | Prebuilt image containing `claude`                 | `ghcr.io/chrisbattarbee/claude-code` |
-| `image.tag`                  | Image tag                                           | `2.1.37`       |
-| `command`                    | Container command (idle by default)                 | `sh -lc sleep infinity` |
-| `credentials.existingSecret` | Existing secret for env vars                        | `""`           |
-| `credentials.anthropicApiKey`| API key for chart-managed secret                    | `""`           |
-| `credentials.secretData`     | Extra chart-managed secret key/value pairs          | `{}`           |
-| `persistence.enabled`        | Persist `/home/node`                                | `true`         |
-| `persistence.size`           | PVC size                                            | `5Gi`          |
-| `persistence.existingClaim`  | Use existing PVC instead of creating one            | `""`           |
-
-See [`charts/claude-code/values.yaml`](charts/claude-code/values.yaml) for the full configuration.
+Image tag, chart version, and chart appVersion all move in lockstep. The Claude Code version inside the image is tracked by the `CLAUDE_CODE_VERSION` ARG and bumped by Renovate.
 
 ---
 
 ## Uninstall
 
 ```bash
-helm uninstall claude
+helm uninstall claude-pod
 ```
 
-PVC is not deleted automatically. Delete it manually if you want to remove persisted HOME data:
+The PVC is not deleted automatically:
 
 ```bash
-kubectl delete pvc claude-claude-code
+kubectl delete pvc -l app.kubernetes.io/instance=claude-pod
 ```

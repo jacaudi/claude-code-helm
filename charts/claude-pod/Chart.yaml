@@ -1,0 +1,24 @@
+apiVersion: v2
+name: claude-pod
+description: Run Claude Code in Kubernetes as a long-lived pod with persistent HOME, built on the bjw-s common library chart
+type: application
+version: 0.2.0
+appVersion: "2.1.37"
+kubeVersion: ">=1.28.0-0"
+keywords:
+  - claude
+  - claude-code
+  - anthropic
+  - ai
+  - cli
+home: https://github.com/jacaudi/claude-code-helm
+sources:
+  - https://github.com/jacaudi/claude-code-helm
+  - https://github.com/anthropics/claude-code
+maintainers:
+  - name: jacaudi
+    url: https://github.com/jacaudi
+dependencies:
+  - name: common
+    repository: https://bjw-s-labs.github.io/helm-charts
+    version: 4.6.2

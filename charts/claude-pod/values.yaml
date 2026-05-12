@@ -1,0 +1,83 @@
+# claude-pod is a thin wrapper around the bjw-s common library chart.
+# Every key here is forwarded as-is to `common` — see
+# https://bjw-s-labs.github.io/helm-charts/docs/common-library/ for the full
+# schema.
+
+defaultPodOptions:
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+
+controllers:
+  app:
+    type: deployment
+    replicas: 1
+    strategy: Recreate
+
+    serviceAccount:
+      identifier: default
+
+    containers:
+      app:
+        image:
+          repository: ghcr.io/jacaudi/claude-pod
+          # Bump in lockstep with Chart.yaml `appVersion`.
+          tag: "2.1.37"
+          pullPolicy: IfNotPresent
+
+        # Idle entrypoint so the pod stays up for `kubectl exec`.
+        command:
+          - sh
+          - -lc
+          - sleep infinity
+
+        env:
+          HOME: /home/claude
+
+        # Wire credentials by pointing at an existing secret, or enable the
+        # chart-managed one under `secrets.credentials` below.
+        envFrom: []
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+              - ALL
+
+        # Keep stdin/TTY open for interactive `kubectl exec` sessions.
+        tty: true
+        stdin: true
+
+# Optional chart-managed secret. Reference it from `containers.app.envFrom`
+# once enabled.
+secrets:
+  credentials:
+    enabled: false
+    stringData: {}
+
+serviceAccount:
+  default:
+    enabled: true
+
+# Persistent HOME so login state and ~/.claude survive restarts.
+persistence:
+  home:
+    enabled: true
+    type: persistentVolumeClaim
+    accessMode: ReadWriteOnce
+    size: 5Gi
+    globalMounts:
+      - path: /home/claude

@@ -1,0 +1,37 @@
+# CI test values for claude-pod. Used by helm lint / helm template in CI.
+
+controllers:
+  app:
+    containers:
+      app:
+        env:
+          HOME: /home/claude
+          TZ: America/New_York
+        envFrom:
+          - secretRef:
+              name: claude-pod-credentials
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+
+secrets:
+  credentials:
+    enabled: true
+    stringData:
+      ANTHROPIC_API_KEY: sk-ant-test-key
+      ANTHROPIC_BASE_URL: https://example.invalid
+
+persistence:
+  home:
+    enabled: true
+    size: 1Gi
+
+serviceAccount:
+  default:
+    enabled: true
+    annotations:
+      test-annotation: "true"

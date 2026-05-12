@@ -1,0 +1,3 @@
+# Helm dependency artifacts
+charts/*/charts/
+charts/*/Chart.lock
