@@ -200,7 +200,8 @@ ENV GOROOT=/usr/local/go \
     GOPATH=/home/claude/.go \
     PATH=/home/claude/.local/bin:/usr/local/go/bin:/home/claude/.go/bin:/usr/local/bin:/usr/bin:/bin \
     HOME=/home/claude \
-    CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+    CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 \
+    CLAUDE_CODE_NO_FLICKER=1
 
 WORKDIR /home/claude
 
