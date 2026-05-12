@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.0](https://github.com/jacaudi/claude-pod/compare/v0.7.1...v0.8.0) (2026-05-12)
+
+### Features
+
+* **chart:** readOnlyRootFilesystem: true + tmpfs at /tmp ([a1b695f](https://github.com/jacaudi/claude-pod/commit/a1b695fff55c0cc7a65ec253a51e61ae941f7e8b))
+
 ## [0.7.1](https://github.com/jacaudi/claude-pod/compare/v0.7.0...v0.7.1) (2026-05-12)
 
 ### Bug Fixes
