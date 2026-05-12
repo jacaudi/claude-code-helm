@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.0](https://github.com/jacaudi/claude-code-helm/compare/v0.2.2...v0.3.0) (2026-05-12)
+
+### Bug Fixes
+
+* **chart:** vendor bjw-s common dependency ([9474bbc](https://github.com/jacaudi/claude-code-helm/commit/9474bbc3f568e5f60d2ab1dcef290cae2bd670bd))
+
+
+### Features
+
+* **containerfile:** bump Claude Code, enable agent teams, add .local/bin to PATH ([368f511](https://github.com/jacaudi/claude-code-helm/commit/368f511f28fb032fe84e386391b8824081ecffb6))
+
 ## [0.2.2](https://github.com/jacaudi/claude-code-helm/compare/v0.2.1...v0.2.2) (2026-05-12)
 
 ### Bug Fixes
