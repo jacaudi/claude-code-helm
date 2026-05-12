@@ -68,8 +68,8 @@ RUN pacman -Syu --noconfirm --needed \
       ca-certificates \
       curl \
       fzf \
-      gh \
       git \
+      github-cli \
       gnupg \
       jq \
       less \
