@@ -7,7 +7,7 @@ ARG DEBIAN_VERSION=trixie-20260505-slim
 ARG ALPINE_VERSION=3.21
 
 # renovate: datasource=npm depName=@anthropic-ai/claude-code
-ARG CLAUDE_CODE_VERSION=2.1.37
+ARG CLAUDE_CODE_VERSION=2.1.139
 
 # renovate: datasource=docker depName=golang
 ARG GO_VERSION=1.26.3
@@ -105,9 +105,11 @@ RUN printf '%s\n' \
 
 # Helper entrypoint: run (or reattach to) Claude Code in a persistent tmux
 # session. Detach with Ctrl-b d; reattach by re-running this command.
-# Extra args pass through to claude.
+# Extra args pass through to claude. Ensures ~/.claude exists before
+# claude tries to write to it (relevant on fresh PVC-mounted /home).
 RUN printf '%s\n' \
       '#!/bin/bash' \
+      'mkdir -p "$HOME/.claude"' \
       'exec tmux new-session -A -s claude claude "$@"' \
       > /usr/local/bin/claude-tmux \
  && chmod 0755 /usr/local/bin/claude-tmux
@@ -117,8 +119,9 @@ RUN groupadd -g 1000 claude \
 
 ENV GOROOT=/usr/local/go \
     GOPATH=/home/claude/.go \
-    PATH=/usr/local/go/bin:/home/claude/.go/bin:/usr/local/bin:/usr/bin:/bin \
-    HOME=/home/claude
+    PATH=/home/claude/.local/bin:/usr/local/go/bin:/home/claude/.go/bin:/usr/local/bin:/usr/bin:/bin \
+    HOME=/home/claude \
+    CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 
 WORKDIR /home/claude
 
