@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.1](https://github.com/jacaudi/claude-code-helm/compare/v0.2.0...v0.2.1) (2026-05-12)
+
+### Bug Fixes
+
+* **containerfile:** use github-cli package name for gh ([a206728](https://github.com/jacaudi/claude-code-helm/commit/a2067286ed06e73e279bf7741efb7b6c3f8bc2c4))
+
 ## [0.2.0](https://github.com/jacaudi/claude-code-helm/compare/v0.1.1...v0.2.0) (2026-05-12)
 
 * feat!: rebuild image on Arch, add uv/tmux/zsh, ship reusable CI ([b8e649a](https://github.com/jacaudi/claude-code-helm/commit/b8e649a5033439026d568ca76bb303efd93c022c))
