@@ -85,7 +85,6 @@ RUN apt-get update \
       fzf \
       gh \
       git \
-      gnupg \
       jq \
       less \
       openssh-client \
@@ -93,7 +92,6 @@ RUN apt-get update \
       procps \
       ripgrep \
       tmux \
-      unzip \
       zsh \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*

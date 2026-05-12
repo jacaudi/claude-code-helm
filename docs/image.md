@@ -20,7 +20,7 @@ Multi-arch (`linux/amd64`, `linux/arm64`) with SBOM + provenance attestations fr
 | `bun` / `bunx` | `/usr/local/bin/` | Pulled `COPY --from=docker.io/oven/bun`. `bunx` is a symlink to `bun`. |
 | `tmux` | apt | System-wide `/etc/tmux.conf` ships Claude Code's recommended settings. |
 | `zsh` | apt | Default login shell for the `claude` user. |
-| `gh`, `git`, `ripgrep`, `fzf`, `jq`, `less`, `gnupg`, `openssh-client`, `procps`, `build-essential`, `passwd`, `unzip` | apt | Standard dev tooling. |
+| `gh`, `git`, `ripgrep`, `fzf`, `jq`, `less`, `openssh-client`, `procps`, `build-essential`, `passwd` | apt | Standard dev tooling. |
 
 ## Env defaults
 
