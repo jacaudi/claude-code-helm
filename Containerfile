@@ -170,7 +170,7 @@ WORKDIR /home/claude
 
 LABEL org.opencontainers.image.title="claude-pod" \
       org.opencontainers.image.description="Claude Code native binary on Debian with developer tooling, Go ${GO_VERSION}, uv ${UV_VERSION}, and bun ${BUN_VERSION}" \
-      org.opencontainers.image.source="https://github.com/jacaudi/claude-code-helm" \
+      org.opencontainers.image.source="https://github.com/jacaudi/claude-pod" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${VCS_REF}" \
       org.opencontainers.image.version="${CLAUDE_CODE_VERSION}"

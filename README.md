@@ -1,4 +1,4 @@
-# claude-pod
+# Claude Pod
 
 [![Helm 3](https://img.shields.io/badge/Helm-3.8+-0f1689?logo=helm&logoColor=white)](https://helm.sh/)
 [![Kubernetes 1.28+](https://img.shields.io/badge/Kubernetes-1.28+-326ce5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)

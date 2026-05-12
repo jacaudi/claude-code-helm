@@ -11,9 +11,9 @@ keywords:
   - anthropic
   - ai
   - cli
-home: https://github.com/jacaudi/claude-code-helm
+home: https://github.com/jacaudi/claude-pod
 sources:
-  - https://github.com/jacaudi/claude-code-helm
+  - https://github.com/jacaudi/claude-pod
   - https://github.com/anthropics/claude-code
 maintainers:
   - name: jacaudi

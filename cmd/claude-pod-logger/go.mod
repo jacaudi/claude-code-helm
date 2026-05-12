@@ -1,3 +1,3 @@
-module github.com/jacaudi/claude-code-helm/cmd/claude-pod-logger
+module github.com/jacaudi/claude-pod/cmd/claude-pod-logger
 
 go 1.24
