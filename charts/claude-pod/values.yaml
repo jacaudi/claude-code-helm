@@ -55,7 +55,10 @@ controllers:
 
         securityContext:
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: false
+          # tmux needs to write a socket under /tmp; the `tmp` persistence
+          # entry below mounts an emptyDir at /tmp to satisfy that without
+          # giving up read-only-root.
+          readOnlyRootFilesystem: true
           capabilities:
             drop:
               - ALL
@@ -75,7 +78,9 @@ serviceAccount:
   default:
     enabled: true
 
-# Persistent HOME so login state and ~/.claude survive restarts.
+# Persistent HOME so login state and ~/.claude survive restarts. The
+# `tmp` entry is a per-pod scratch space required by tmux (and most
+# tools) now that the container root filesystem is read-only.
 persistence:
   home:
     enabled: true
@@ -84,3 +89,9 @@ persistence:
     size: 5Gi
     globalMounts:
       - path: /home/claude
+  tmp:
+    type: emptyDir
+    medium: Memory
+    sizeLimit: 256Mi
+    globalMounts:
+      - path: /tmp
