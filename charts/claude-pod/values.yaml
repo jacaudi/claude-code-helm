@@ -25,8 +25,9 @@ controllers:
       app:
         image:
           repository: ghcr.io/jacaudi/claude-pod
-          # Bump in lockstep with Chart.yaml `appVersion`.
-          tag: "v0.3.0"
+          # Defaults to .Chart.AppVersion via templates/common.yaml when
+          # left empty. Override per-install if you want a pinned tag.
+          tag: ""
           pullPolicy: IfNotPresent
 
         # Idle entrypoint so the pod stays up for `kubectl exec`.

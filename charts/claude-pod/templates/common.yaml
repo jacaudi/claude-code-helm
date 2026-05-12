@@ -1,1 +1,22 @@
-{{- include "bjw-s.common.loader.all" . }}
+{{/*
+Default any container image.tag that the user hasn't pinned to
+.Chart.AppVersion. Keeps Chart.yaml the single source of truth for
+"what image this chart deploys" and avoids drift between the chart's
+appVersion (set correctly by the CI's --app-version flag) and the
+image tag in values.yaml (which the CI cannot update from a stale
+checkout). Everything else is a pure pass-through to bjw-s common.
+*/}}
+{{- $values := deepCopy .Values -}}
+{{- $appVersion := toString .Chart.AppVersion -}}
+{{- range $cName, $controller := (default dict $values.controllers) -}}
+  {{- range $containerName, $container := (default dict $controller.containers) -}}
+    {{- if (kindIs "map" $container.image) -}}
+      {{- if and (not $container.image.tag) (not $container.image.digest) -}}
+        {{- $_ := set $container.image "tag" $appVersion -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- $ctx := deepCopy . -}}
+{{- $_ := set $ctx "Values" $values -}}
+{{ include "bjw-s.common.loader.all" $ctx }}

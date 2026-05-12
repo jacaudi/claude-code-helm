@@ -44,13 +44,13 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "sed -i 's/^version:.*/version: ${nextRelease.version}/' charts/claude-pod/Chart.yaml && sed -i 's/^appVersion:.*/appVersion: \"${nextRelease.version}\"/' charts/claude-pod/Chart.yaml && sed -i 's|tag: \"[^\"]*\"|tag: \"v${nextRelease.version}\"|' charts/claude-pod/values.yaml"
+        "prepareCmd": "sed -i 's/^version:.*/version: ${nextRelease.version}/' charts/claude-pod/Chart.yaml && sed -i 's/^appVersion:.*/appVersion: \"v${nextRelease.version}\"/' charts/claude-pod/Chart.yaml"
       }
     ],
     [
       "@semantic-release/git",
       {
-        "assets": ["CHANGELOG.md", "charts/claude-pod/Chart.yaml", "charts/claude-pod/values.yaml"],
+        "assets": ["CHANGELOG.md", "charts/claude-pod/Chart.yaml"],
         "message": "release: v${nextRelease.version} [skip ci]"
       }
     ],
