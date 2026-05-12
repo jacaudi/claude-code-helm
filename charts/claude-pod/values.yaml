@@ -30,11 +30,12 @@ controllers:
           tag: ""
           pullPolicy: IfNotPresent
 
-        # Idle entrypoint so the pod stays up for `kubectl exec`.
+        # Default entrypoint: streams Claude's per-session JSONL conversation
+        # logs to stdout so `kubectl logs` shows activity. Independent of
+        # tmux/claude — the pod stays up regardless of session state.
+        # Override to `["sh", "-lc", "sleep infinity"]` to disable log streaming.
         command:
-          - sh
-          - -lc
-          - sleep infinity
+          - claude-pod-logger
 
         env:
           HOME: /home/claude

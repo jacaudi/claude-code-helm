@@ -49,7 +49,15 @@ FROM public.ecr.aws/docker/library/golang:${GO_VERSION}-alpine AS go-source
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv-source
 
 ############################################
-# Stage 3: final runtime image
+# Stage 3: build claude-pod-logger
+############################################
+FROM public.ecr.aws/docker/library/golang:${GO_VERSION}-alpine AS logger-build
+WORKDIR /src
+COPY cmd/claude-pod-logger/go.mod cmd/claude-pod-logger/main.go ./
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/claude-pod-logger .
+
+############################################
+# Stage 4: final runtime image
 ############################################
 FROM public.ecr.aws/docker/library/debian:${DEBIAN_VERSION}
 
@@ -93,6 +101,10 @@ COPY --from=uv-source /uv /uvx /usr/local/bin/
 
 # Claude Code native binary — verified above.
 COPY --from=claude-fetcher /out/claude /usr/local/bin/claude
+
+# claude-pod-logger — streams ~/.claude/projects/**/*.jsonl to stdout so
+# Claude activity is visible in `kubectl logs`. tmux-independent.
+COPY --from=logger-build /out/claude-pod-logger /usr/local/bin/claude-pod-logger
 
 # System-wide tmux config — recommended settings for Claude Code per
 # https://code.claude.com/docs/en/terminal-config.md#configure-tmux
