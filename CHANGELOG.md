@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.2](https://github.com/jacaudi/claude-code-helm/compare/v0.3.1...v0.3.2) (2026-05-12)
+
+### Bug Fixes
+
+* **containerfile:** ensure ~/.local/bin/claude symlink exists ([f93b33b](https://github.com/jacaudi/claude-code-helm/commit/f93b33be1f00367d4b56e094f746564a1ddd0cec))
+
 ## [0.3.1](https://github.com/jacaudi/claude-code-helm/compare/v0.3.0...v0.3.1) (2026-05-12)
 
 ### Bug Fixes
