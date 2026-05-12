@@ -116,8 +116,8 @@ RUN groupadd -g 1000 claude \
  && useradd -m -u 1000 -g 1000 -s /bin/zsh claude
 
 ENV GOROOT=/usr/local/go \
-    GOPATH=/home/claude/go \
-    PATH=/usr/local/go/bin:/home/claude/go/bin:/usr/local/bin:/usr/bin:/bin \
+    GOPATH=/home/claude/.go \
+    PATH=/usr/local/go/bin:/home/claude/.go/bin:/usr/local/bin:/usr/bin:/bin \
     HOME=/home/claude
 
 WORKDIR /home/claude
