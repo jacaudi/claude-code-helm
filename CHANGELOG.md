@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.0](https://github.com/jacaudi/claude-pod/compare/v0.6.0...v0.7.0) (2026-05-12)
+
+### Features
+
+* **containerfile:** add claude-pod-init entrypoint, launch claude at ~/projects on boot ([62a34cb](https://github.com/jacaudi/claude-pod/commit/62a34cbca3ba75d00515ee6f27e4fade2a51f41b))
+
 ## [0.6.0](https://github.com/jacaudi/claude-pod/compare/v0.5.0...v0.6.0) (2026-05-12)
 
 ### Features
