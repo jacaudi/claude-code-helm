@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/jacaudi/claude-code-helm/compare/v0.5.0...v0.6.0) (2026-05-12)
+
+### Features
+
+* **claude-pod-logger:** use 🦀 Clawd for assistant + track helm dep ([677560f](https://github.com/jacaudi/claude-code-helm/commit/677560f7d588961cdd0aea559c2a70452a00ee91))
+* **containerfile:** add bun and bunx via multi-stage copy ([388b7e9](https://github.com/jacaudi/claude-code-helm/commit/388b7e95060a7e06d9c75e1af9dd0b8f10d3a472))
+
 ## [0.5.0](https://github.com/jacaudi/claude-code-helm/compare/v0.4.0...v0.5.0) (2026-05-12)
 
 ### Features
