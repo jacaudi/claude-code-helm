@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.2](https://github.com/jacaudi/claude-code-helm/compare/v0.2.1...v0.2.2) (2026-05-12)
+
+### Bug Fixes
+
+* **containerfile:** switch base from archlinux to debian for arm64 ([7f2c1b9](https://github.com/jacaudi/claude-code-helm/commit/7f2c1b9e33dcdbfea9c3fa93befd98a24ab56ee9))
+
 ## [0.2.1](https://github.com/jacaudi/claude-code-helm/compare/v0.2.0...v0.2.1) (2026-05-12)
 
 ### Bug Fixes
