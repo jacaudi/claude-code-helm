@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.1](https://github.com/jacaudi/claude-pod/compare/v0.7.0...v0.7.1) (2026-05-12)
+
+### Bug Fixes
+
+* **containerfile:** check dir/symlink existence before creating ([43437e3](https://github.com/jacaudi/claude-pod/commit/43437e3aee26bedd38795ce798cdb90fccbd318c))
+
 ## [0.7.0](https://github.com/jacaudi/claude-pod/compare/v0.6.0...v0.7.0) (2026-05-12)
 
 ### Features
