@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.11.0](https://github.com/jacaudi/claude-pod/compare/v0.10.0...v0.11.0) (2026-05-12)
+
+### Features
+
+* **containerfile:** set CLAUDE_CODE_NO_FLICKER=1 ([5753c59](https://github.com/jacaudi/claude-pod/commit/5753c5932ddfefa322ce1caeb150f642f3353e03))
+
 ## [0.10.0](https://github.com/jacaudi/claude-pod/compare/v0.9.0...v0.10.0) (2026-05-12)
 
 ### Features
