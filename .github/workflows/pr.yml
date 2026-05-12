@@ -1,6 +1,7 @@
 ---
 # Pull Request Validation
-# Fast feedback on PRs: lint and native multi-arch container builds (no push).
+# Fast feedback on PRs: lint, render the chart, vet the Go binary,
+# and build the container natively for each architecture (no push).
 name: PR Validation
 
 "on":
@@ -20,6 +21,64 @@ jobs:
       helm: true
       helm-chart-path: 'charts/claude-pod'
 
+  go-test:
+    name: Go (test + vet + scan)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cmd/claude-pod-logger
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: cmd/claude-pod-logger/go.mod
+          cache: false   # no external deps yet — no go.sum to key on
+
+      - name: go test
+        run: go test -race -coverprofile=cover.out ./...
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+          work-dir: cmd/claude-pod-logger
+
+      - name: gosec
+        uses: securego/gosec@master
+        with:
+          args: ./cmd/claude-pod-logger/...
+
+  helm-render:
+    name: Helm template + kubeconform
+    needs: [lint]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -fsSL "https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz" \
+            | tar -xz -C /usr/local/bin kubeconform
+
+      - name: helm template + kubeconform (default values)
+        run: |
+          helm dependency build charts/claude-pod
+          helm template t charts/claude-pod | kubeconform -strict -summary -ignore-missing-schemas
+
+      - name: helm template + kubeconform (ci/test-values)
+        run: |
+          helm template t charts/claude-pod --values charts/claude-pod/ci/test-values.yaml \
+            | kubeconform -strict -summary -ignore-missing-schemas
+
   container-amd64:
     name: Build Container (amd64)
     needs: [lint]
@@ -32,6 +91,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Build (amd64)
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -42,6 +102,12 @@ jobs:
           tags: claude-pod:pr-${{ github.event.pull_request.number }}-amd64
           cache-from: type=gha,scope=amd64
           cache-to: type=gha,mode=max,scope=amd64
+
+      - name: Report image size
+        run: |
+          SIZE=$(docker image inspect "claude-pod:pr-${{ github.event.pull_request.number }}-amd64" --format='{{.Size}}')
+          HUMAN=$(numfmt --to=iec --suffix=B "$SIZE")
+          echo "### Image size (linux/amd64): $HUMAN" >> $GITHUB_STEP_SUMMARY
 
   container-arm64:
     name: Build Container (arm64)
@@ -65,3 +131,9 @@ jobs:
           tags: claude-pod:pr-${{ github.event.pull_request.number }}-arm64
           cache-from: type=gha,scope=arm64
           cache-to: type=gha,mode=max,scope=arm64
+
+      - name: Report image size
+        run: |
+          SIZE=$(docker image inspect "claude-pod:pr-${{ github.event.pull_request.number }}-arm64" --format='{{.Size}}')
+          HUMAN=$(numfmt --to=iec --suffix=B "$SIZE")
+          echo "### Image size (linux/arm64): $HUMAN" >> $GITHUB_STEP_SUMMARY
