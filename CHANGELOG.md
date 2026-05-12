@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.0](https://github.com/jacaudi/claude-pod/compare/v0.9.0...v0.10.0) (2026-05-12)
+
+### Features
+
+* **claude-pod-logger:** timestamps, tool inputs/results, turn boundaries ([1dfad0d](https://github.com/jacaudi/claude-pod/commit/1dfad0dca4e79ed15c440fe40adb9510ec0610c5))
+
 ## [0.9.0](https://github.com/jacaudi/claude-pod/compare/v0.8.0...v0.9.0) (2026-05-12)
 
 ### Features
