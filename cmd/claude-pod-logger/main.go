@@ -217,7 +217,7 @@ func streamRange(path string, offset int64, w io.Writer, f format, verbose bool)
 	}
 
 	complete := buf[:lastNl+1]
-	for _, line := range bytes.Split(bytes.TrimRight(complete, "\n"), []byte{'\n'}) {
+	for line := range bytes.SplitSeq(bytes.TrimRight(complete, "\n"), []byte{'\n'}) {
 		if len(line) == 0 {
 			continue
 		}
