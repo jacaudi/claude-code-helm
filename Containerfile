@@ -125,23 +125,44 @@ RUN printf '%s\n' \
       'set -as terminal-features "xterm*:extkeys"' \
       > /etc/tmux.conf
 
-# Helper entrypoint: run (or reattach to) Claude Code in a persistent tmux
-# session. Detach with Ctrl-b d; reattach by re-running this command.
-# Extra args pass through to claude.
+# claude-tmux — interactive entrypoint. Runs (or reattaches to) Claude
+# Code inside a persistent tmux session. Detach with Ctrl-b d; reattach
+# by re-running this command. Extra args pass through to claude.
 #
-# Ensures ~/.claude and ~/.local/bin exist, and symlinks
-# ~/.local/bin/claude -> /usr/local/bin/claude so Claude Code's "native"
-# install self-check finds the binary at the path it expects. Symlink
-# means the image is the source of truth for the version (`claude update`
-# will fail with permission denied, which is intentional — Renovate-bump
-# the image instead).
+# Defaults the session's working directory to CLAUDE_WORK_DIR (default
+# $HOME/projects) so Claude treats it as a project. mkdir -p so the
+# directory exists on first run with a fresh PVC. Also (re)creates the
+# ~/.local/bin/claude symlink — Claude Code's "native install"
+# self-check expects to find the binary there.
 RUN printf '%s\n' \
       '#!/bin/bash' \
-      'mkdir -p "$HOME/.claude" "$HOME/.local/bin"' \
+      'WORK_DIR="${CLAUDE_WORK_DIR:-$HOME/projects}"' \
+      'mkdir -p "$WORK_DIR" "$HOME/.claude" "$HOME/.local/bin"' \
       'ln -sf /usr/local/bin/claude "$HOME/.local/bin/claude"' \
-      'exec tmux new-session -A -s claude claude "$@"' \
+      'exec tmux new-session -A -s claude -c "$WORK_DIR" claude "$@"' \
       > /usr/local/bin/claude-tmux \
  && chmod 0755 /usr/local/bin/claude-tmux
+
+# claude-pod-init — pod entrypoint that starts the claude tmux session
+# at boot and then hands stdout/stderr to claude-pod-logger. Wires up
+# the same WORK_DIR + symlink setup claude-tmux does. The session is
+# launched detached so log streaming becomes PID 1; users attach to the
+# already-running session with `kubectl exec -- claude-tmux`.
+#
+# No supervision: if claude exits, the tmux session ends. Run
+# `claude-tmux` to start a new one.
+RUN printf '%s\n' \
+      '#!/bin/bash' \
+      'set -u' \
+      'WORK_DIR="${CLAUDE_WORK_DIR:-$HOME/projects}"' \
+      'mkdir -p "$WORK_DIR" "$HOME/.claude" "$HOME/.local/bin" 2>/dev/null || true' \
+      'ln -sf /usr/local/bin/claude "$HOME/.local/bin/claude" 2>/dev/null || true' \
+      'if ! tmux has-session -t claude 2>/dev/null; then' \
+      '  tmux new-session -d -s claude -c "$WORK_DIR" claude' \
+      'fi' \
+      'exec claude-pod-logger "$@"' \
+      > /usr/local/bin/claude-pod-init \
+ && chmod 0755 /usr/local/bin/claude-pod-init
 
 # Same setup for interactive shell entry (`docker exec -it ... zsh`,
 # `... bash`), so users who skip claude-tmux still get the symlink.

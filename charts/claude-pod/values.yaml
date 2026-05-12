@@ -30,12 +30,13 @@ controllers:
           tag: ""
           pullPolicy: IfNotPresent
 
-        # Default entrypoint: streams Claude's per-session JSONL conversation
-        # logs to stdout so `kubectl logs` shows activity. Independent of
-        # tmux/claude — the pod stays up regardless of session state.
-        # Override to `["sh", "-lc", "sleep infinity"]` to disable log streaming.
+        # Default entrypoint: starts Claude Code in a detached tmux session
+        # (CWD = $CLAUDE_WORK_DIR, default ~/projects), then execs to
+        # claude-pod-logger so kubectl logs streams the conversation.
+        # Override to `["claude-pod-logger"]` to skip the tmux launch, or
+        # `["sh", "-lc", "sleep infinity"]` to disable both.
         command:
-          - claude-pod-logger
+          - claude-pod-init
 
         env:
           HOME: /home/claude

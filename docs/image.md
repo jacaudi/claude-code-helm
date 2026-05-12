@@ -12,8 +12,9 @@ Multi-arch (`linux/amd64`, `linux/arm64`) with SBOM + provenance attestations fr
 | Tool | Path | Notes |
 |---|---|---|
 | `claude` | `/usr/local/bin/claude` | Native binary, SHA-verified at build time against Anthropic's per-release `manifest.json`. Symlinked at runtime into `~/.local/bin/claude` so Claude Code's "native install" self-check is happy. |
-| `claude-tmux` | `/usr/local/bin/claude-tmux` | Wrapper that runs (or reattaches to) `claude` inside a tmux session. See [tmux.md](tmux.md). |
-| `claude-pod-logger` | `/usr/local/bin/claude-pod-logger` | Streams Claude's per-session JSONL files to stdout. Default `CMD`. See [logger.md](logger.md). |
+| `claude-pod-init` | `/usr/local/bin/claude-pod-init` | Pod entrypoint. Starts `claude` in a detached tmux session at `$CLAUDE_WORK_DIR` (default `~/projects`), then execs `claude-pod-logger`. Chart's default `command`. See [tmux.md](tmux.md). |
+| `claude-tmux` | `/usr/local/bin/claude-tmux` | Interactive wrapper. Attaches to the `claude-pod-init`-started session, or creates one. Used by `kubectl exec`. See [tmux.md](tmux.md). |
+| `claude-pod-logger` | `/usr/local/bin/claude-pod-logger` | Streams Claude's per-session JSONL files to stdout. The image's literal `CMD`, and what `claude-pod-init` execs into. See [logger.md](logger.md). |
 | `go` / `gofmt` | `/usr/local/go/bin/` | Pulled `COPY --from=golang:VERSION-alpine`. `GOROOT=/usr/local/go`, `GOPATH=/home/claude/.go`. |
 | `uv` / `uvx` | `/usr/local/bin/` | Pulled `COPY --from=ghcr.io/astral-sh/uv`. Use `uv python install` to get a Python (none is pre-installed). |
 | `bun` / `bunx` | `/usr/local/bin/` | Pulled `COPY --from=docker.io/oven/bun`. `bunx` is a symlink to `bun`. |

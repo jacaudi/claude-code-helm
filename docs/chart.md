@@ -16,7 +16,7 @@ controllers:
         image:
           repository: ghcr.io/jacaudi/claude-pod
           tag: ""         # defaults to .Chart.AppVersion via the chart helper
-        command: [claude-pod-logger]
+        command: [claude-pod-init]   # starts tmux+claude at ~/projects, then claude-pod-logger
         resources: { ... }
         securityContext: { drop ALL caps, no priv escalation }
         tty: true

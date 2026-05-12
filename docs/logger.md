@@ -1,8 +1,10 @@
 # claude-pod-logger
 
-The pod's default `PID 1`. It streams Claude Code's per-session conversation JSONL files to stdout so the activity is visible in `kubectl logs` (or `docker logs`).
+The image's literal `CMD` and the program `claude-pod-init` execs into after launching the tmux session — so this is effectively the pod's `PID 1` once init has handed off. Streams Claude Code's per-session conversation JSONL files to stdout so the activity is visible in `kubectl logs` (or `docker logs`).
 
 Independent of tmux, `claude`, or anything else: it polls a directory and emits new lines. The pod stays up whether Claude is running or not.
+
+To run the logger without auto-launching tmux/claude, set the chart's container command to `[claude-pod-logger]` instead of the default `[claude-pod-init]`. See [tmux.md](tmux.md).
 
 Source: [`cmd/claude-pod-logger/`](../cmd/claude-pod-logger/). Stdlib-only Go.
 
