@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
-# renovate: datasource=docker depName=archlinux
-ARG ARCH_VERSION=base-20260510.0.525573
+# renovate: datasource=docker depName=debian
+ARG DEBIAN_VERSION=trixie-20260505-slim
 
 # renovate: datasource=docker depName=alpine
 ARG ALPINE_VERSION=3.21
@@ -51,7 +51,7 @@ FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv-source
 ############################################
 # Stage 3: final runtime image
 ############################################
-FROM public.ecr.aws/docker/library/archlinux:${ARCH_VERSION}
+FROM public.ecr.aws/docker/library/debian:${DEBIAN_VERSION}
 
 ARG CLAUDE_CODE_VERSION
 ARG GO_VERSION
@@ -60,28 +60,30 @@ ARG BUILD_DATE
 ARG VCS_REF
 
 ENV LANG=C.UTF-8 \
-    LC_ALL=C.UTF-8
+    LC_ALL=C.UTF-8 \
+    DEBIAN_FRONTEND=noninteractive
 
-RUN pacman -Syu --noconfirm --needed \
-      base-devel \
+RUN apt-get update \
+ && apt-get install --no-install-recommends -y \
       bash \
+      build-essential \
       ca-certificates \
       curl \
       fzf \
+      gh \
       git \
-      github-cli \
       gnupg \
       jq \
       less \
-      openssh \
-      procps-ng \
+      openssh-client \
+      passwd \
+      procps \
       ripgrep \
       tmux \
       unzip \
-      which \
       zsh \
-    && pacman -Scc --noconfirm \
-    && rm -rf /var/cache/pacman/pkg/*
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
 
 # Go toolchain — copied from the official golang image.
 COPY --from=go-source /usr/local/go /usr/local/go
@@ -110,19 +112,18 @@ RUN printf '%s\n' \
       > /usr/local/bin/claude-tmux \
  && chmod 0755 /usr/local/bin/claude-tmux
 
-ENV GOROOT=/usr/local/go \
-    GOPATH=/home/claude/go \
-    PATH=/usr/local/go/bin:/home/claude/go/bin:/usr/local/bin:/usr/bin:/bin
-
 RUN groupadd -g 1000 claude \
  && useradd -m -u 1000 -g 1000 -s /bin/zsh claude
 
-ENV HOME=/home/claude
+ENV GOROOT=/usr/local/go \
+    GOPATH=/home/claude/go \
+    PATH=/usr/local/go/bin:/home/claude/go/bin:/usr/local/bin:/usr/bin:/bin \
+    HOME=/home/claude
 
 WORKDIR /home/claude
 
 LABEL org.opencontainers.image.title="claude-pod" \
-      org.opencontainers.image.description="Claude Code native binary on Arch Linux with developer tooling, Go ${GO_VERSION}, and uv ${UV_VERSION}" \
+      org.opencontainers.image.description="Claude Code native binary on Debian with developer tooling, Go ${GO_VERSION}, and uv ${UV_VERSION}" \
       org.opencontainers.image.source="https://github.com/jacaudi/claude-code-helm" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${VCS_REF}" \

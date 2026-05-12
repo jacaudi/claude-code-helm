@@ -20,7 +20,7 @@
     },
     {
       "matchManagers": ["dockerfile", "custom.regex"],
-      "matchPackageNames": ["archlinux", "alpine"],
+      "matchPackageNames": ["debian", "alpine"],
       "semanticCommitType": "chore",
       "semanticCommitScope": "containerfile"
     },
@@ -60,7 +60,7 @@
       "customType": "regex",
       "fileMatch": ["(^|/)Containerfile$"],
       "matchStrings": [
-        "#\\s*renovate:\\s*datasource=(?<datasource>docker)\\s+depName=(?<depName>archlinux)\\s*\\nARG\\s+ARCH_VERSION=(?<currentValue>\\S+)"
+        "#\\s*renovate:\\s*datasource=(?<datasource>docker)\\s+depName=(?<depName>debian)\\s*\\nARG\\s+DEBIAN_VERSION=(?<currentValue>\\S+)"
       ]
     },
     {
