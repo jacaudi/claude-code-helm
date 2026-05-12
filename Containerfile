@@ -137,8 +137,10 @@ RUN printf '%s\n' \
 RUN printf '%s\n' \
       '#!/bin/bash' \
       'WORK_DIR="${CLAUDE_WORK_DIR:-$HOME/projects}"' \
-      'mkdir -p "$WORK_DIR" "$HOME/.claude" "$HOME/.local/bin"' \
-      'ln -sf /usr/local/bin/claude "$HOME/.local/bin/claude"' \
+      'for d in "$WORK_DIR" "$HOME/.claude" "$HOME/.local/bin"; do' \
+      '  [ -d "$d" ] || mkdir -p "$d"' \
+      'done' \
+      '[ -L "$HOME/.local/bin/claude" ] || ln -sf /usr/local/bin/claude "$HOME/.local/bin/claude"' \
       'exec tmux new-session -A -s claude -c "$WORK_DIR" claude "$@"' \
       > /usr/local/bin/claude-tmux \
  && chmod 0755 /usr/local/bin/claude-tmux
@@ -155,8 +157,10 @@ RUN printf '%s\n' \
       '#!/bin/bash' \
       'set -u' \
       'WORK_DIR="${CLAUDE_WORK_DIR:-$HOME/projects}"' \
-      'mkdir -p "$WORK_DIR" "$HOME/.claude" "$HOME/.local/bin" 2>/dev/null || true' \
-      'ln -sf /usr/local/bin/claude "$HOME/.local/bin/claude" 2>/dev/null || true' \
+      'for d in "$WORK_DIR" "$HOME/.claude" "$HOME/.local/bin"; do' \
+      '  [ -d "$d" ] || mkdir -p "$d" 2>/dev/null || true' \
+      'done' \
+      '[ -L "$HOME/.local/bin/claude" ] || ln -sf /usr/local/bin/claude "$HOME/.local/bin/claude" 2>/dev/null || true' \
       'if ! tmux has-session -t claude 2>/dev/null; then' \
       '  tmux new-session -d -s claude -c "$WORK_DIR" claude' \
       'fi' \
