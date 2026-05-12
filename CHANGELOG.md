@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/jacaudi/claude-code-helm/compare/v0.4.0...v0.5.0) (2026-05-12)
+
+### Features
+
+* **claude-pod-logger:** add 👤 user / 🔧 tool / 📝 summary prefixes ([d859254](https://github.com/jacaudi/claude-code-helm/commit/d859254a5ec1a144637cbb628702b4673270e371))
+* **claude-pod-logger:** filter noise and render as compact text ([2a362e6](https://github.com/jacaudi/claude-code-helm/commit/2a362e61660942f53412e369921111971832f771))
+
 ## [0.4.0](https://github.com/jacaudi/claude-code-helm/compare/v0.3.2...v0.4.0) (2026-05-12)
 
 ### Features
