@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.0](https://github.com/jacaudi/claude-pod/compare/v0.8.0...v0.9.0) (2026-05-12)
+
+### Features
+
+* **containerfile:** merge /etc/claude-pod/mcp.json into ~/.claude.json on boot ([b047186](https://github.com/jacaudi/claude-pod/commit/b0471867e1c468d6238ce8817558730763933926))
+
 ## [0.8.0](https://github.com/jacaudi/claude-pod/compare/v0.7.1...v0.8.0) (2026-05-12)
 
 ### Features
