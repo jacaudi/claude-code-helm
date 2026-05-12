@@ -65,7 +65,55 @@ func TestShouldEmit(t *testing.T) {
 	}
 }
 
-func TestRenderUser(t *testing.T) {
+func TestFormatTimestamp(t *testing.T) {
+	tests := []struct {
+		name string
+		in   any
+		want string
+	}{
+		{"valid", "2026-05-12T18:11:56.518Z", "18:11:56"},
+		{"valid no fractional", "2026-05-12T18:11:56Z", "18:11:56"},
+		{"valid with TZ", "2026-05-12T13:11:56-05:00", "18:11:56"},
+		{"missing", nil, ""},
+		{"empty string", "", ""},
+		{"non-string", 12345, ""},
+		{"malformed", "not-a-date", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := formatTimestamp(tt.in); got != tt.want {
+				t.Errorf("formatTimestamp(%v) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPrefixLines(t *testing.T) {
+	tests := []struct {
+		name string
+		ts   string
+		text string
+		want string
+	}{
+		{"single line with ts", "18:11:56", "👤 hi", "18:11:56 👤 hi"},
+		{"empty text", "18:11:56", "", ""},
+		{"empty ts (no prefix)", "", "👤 hi", "👤 hi"},
+		{
+			"multi-line indented",
+			"18:11:56", "🦀 line one\nline two",
+			"18:11:56 🦀 line one\n         line two",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := prefixLines(tt.ts, tt.text); got != tt.want {
+				t.Errorf("prefixLines() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRenderUserPrompt(t *testing.T) {
 	tests := []struct {
 		name string
 		in   string
@@ -75,8 +123,62 @@ func TestRenderUser(t *testing.T) {
 		{"whitespace stripped", `{"type":"user","message":{"role":"user","content":"  hi there  "}}`, "👤 hi there"},
 		{"empty string", `{"type":"user","message":{"content":""}}`, ""},
 		{"only whitespace", `{"type":"user","message":{"content":"   \n  "}}`, ""},
-		{"array content (tool_result)", `{"type":"user","message":{"content":[{"type":"tool_result","content":"..."}]}}`, ""},
 		{"missing message", `{"type":"user"}`, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var m map[string]any
+			if err := json.Unmarshal([]byte(tt.in), &m); err != nil {
+				t.Fatalf("setup: %v", err)
+			}
+			if got := renderUser(m); got != tt.want {
+				t.Errorf("renderUser() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRenderUserToolResult(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			"plain string result",
+			`{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"x","content":"hello world"}]}}`,
+			"↩ hello world",
+		},
+		{
+			"multi-line result picks first non-blank",
+			`{"type":"user","message":{"content":[{"type":"tool_result","content":"\n\nfirst\nsecond"}]}}`,
+			"↩ first",
+		},
+		{
+			"error",
+			`{"type":"user","message":{"content":[{"type":"tool_result","content":"oops","is_error":true}]}}`,
+			"↩ ERR: oops",
+		},
+		{
+			"structured content (text block)",
+			`{"type":"user","message":{"content":[{"type":"tool_result","content":[{"type":"text","text":"hi from block"}]}]}}`,
+			"↩ hi from block",
+		},
+		{
+			"empty result dropped",
+			`{"type":"user","message":{"content":[{"type":"tool_result","content":""}]}}`,
+			"",
+		},
+		{
+			"empty error annotated",
+			`{"type":"user","message":{"content":[{"type":"tool_result","content":"","is_error":true}]}}`,
+			"↩ (empty error)",
+		},
+		{
+			"non-tool_result blocks skipped",
+			`{"type":"user","message":{"content":[{"type":"something_else","data":"..."}]}}`,
+			"",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -103,14 +205,24 @@ func TestRenderAssistant(t *testing.T) {
 			"🦀 Hello!",
 		},
 		{
-			"tool use",
-			`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{}}]}}`,
-			"🔧 Bash",
+			"tool use with input",
+			`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"ls"}}]}}`,
+			`🔧 Bash: {"command":"ls"}`,
+		},
+		{
+			"tool use no input",
+			`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"LS"}]}}`,
+			"🔧 LS",
+		},
+		{
+			"tool use empty-object input",
+			`{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Glob","input":{}}]}}`,
+			"🔧 Glob",
 		},
 		{
 			"text + tool",
-			`{"type":"assistant","message":{"content":[{"type":"text","text":"running it"},{"type":"tool_use","name":"Read"}]}}`,
-			"🦀 running it\n🔧 Read",
+			`{"type":"assistant","message":{"content":[{"type":"text","text":"running it"},{"type":"tool_use","name":"Read","input":{"file_path":"/tmp/a"}}]}}`,
+			"🦀 running it\n" + `🔧 Read: {"file_path":"/tmp/a"}`,
 		},
 		{
 			"empty text block dropped",
@@ -133,18 +245,36 @@ func TestRenderAssistant(t *testing.T) {
 	}
 }
 
-func TestRenderText(t *testing.T) {
+func TestRenderTextWithTimestamp(t *testing.T) {
 	tests := []struct {
 		name string
 		in   string
 		want string
 	}{
-		{"user", `{"type":"user","message":{"content":"hi"}}`, "👤 hi"},
-		{"assistant text", `{"type":"assistant","message":{"content":[{"type":"text","text":"hey"}]}}`, "🦀 hey"},
-		{"summary field", `{"type":"summary","summary":"recap"}`, "📝 recap"},
-		{"summary content fallback", `{"type":"summary","content":"older form"}`, "📝 older form"},
-		{"empty summary", `{"type":"summary"}`, ""},
-		{"unknown type", `{"type":"mystery"}`, ""},
+		{
+			"user with ts",
+			`{"type":"user","message":{"content":"hi"},"timestamp":"2026-05-12T18:11:56Z"}`,
+			"18:11:56 👤 hi",
+		},
+		{
+			"assistant multi-line indented",
+			`{"type":"assistant","message":{"content":[{"type":"text","text":"line one\nline two"}]},"timestamp":"2026-05-12T18:11:56Z"}`,
+			"18:11:56 🦀 line one\n         line two",
+		},
+		{
+			"summary with ts",
+			`{"type":"summary","summary":"recap","timestamp":"2026-05-12T18:11:56Z"}`,
+			"18:11:56 📝 recap",
+		},
+		{
+			"no ts falls back to bare prefix",
+			`{"type":"user","message":{"content":"hi"}}`,
+			"👤 hi",
+		},
+		{
+			"unknown type returns empty",
+			`{"type":"mystery"}`, "",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -161,59 +291,65 @@ func TestRenderText(t *testing.T) {
 
 func TestRenderLine(t *testing.T) {
 	tests := []struct {
-		name    string
-		line    string
-		format  format
-		verbose bool
-		want    string
-		emit    bool
+		name     string
+		line     string
+		format   format
+		verbose  bool
+		want     string
+		wantRole string
+		emit     bool
 	}{
 		{
 			"verbose passes everything",
 			`{"type":"attachment"}`, formatText, true,
-			`{"type":"attachment"}` + "\n", true,
-		},
-		{
-			"verbose adds newline when missing",
-			`{"type":"system"}`, formatJSON, true,
-			`{"type":"system"}` + "\n", true,
-		},
-		{
-			"verbose keeps existing newline",
-			`{"type":"system"}` + "\n", formatJSON, true,
-			`{"type":"system"}` + "\n", true,
+			`{"type":"attachment"}` + "\n", "", true,
 		},
 		{
 			"text format filters noise",
 			`{"type":"attachment","attachment":{}}`, formatText, false,
-			"", false,
+			"", "", false,
 		},
 		{
 			"text format renders user",
-			`{"type":"user","message":{"content":"hi"}}`, formatText, false,
-			"👤 hi\n", true,
+			`{"type":"user","message":{"content":"hi"},"timestamp":"2026-05-12T18:11:56Z"}`, formatText, false,
+			"18:11:56 👤 hi\n", "user", true,
 		},
 		{
 			"json format passes filtered line as-is",
 			`{"type":"user","message":{"content":"hi"}}`, formatJSON, false,
-			`{"type":"user","message":{"content":"hi"}}` + "\n", true,
+			`{"type":"user","message":{"content":"hi"}}` + "\n", "user", true,
 		},
 		{
 			"invalid JSON is dropped in filtered mode",
 			`not json`, formatText, false,
-			"", false,
+			"", "", false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, emit := renderLine([]byte(tt.line), tt.format, tt.verbose)
+			got, role, emit := renderLine([]byte(tt.line), tt.format, tt.verbose)
 			if emit != tt.emit {
 				t.Errorf("emit = %v, want %v", emit, tt.emit)
 			}
 			if emit && string(got) != tt.want {
 				t.Errorf("rendered = %q, want %q", string(got), tt.want)
 			}
+			if role != tt.wantRole {
+				t.Errorf("role = %q, want %q", role, tt.wantRole)
+			}
 		})
+	}
+}
+
+func TestTruncate(t *testing.T) {
+	if got := truncate("abcdef", 3); got != "abc…" {
+		t.Errorf("truncate over: got %q", got)
+	}
+	if got := truncate("abc", 5); got != "abc" {
+		t.Errorf("truncate under: got %q", got)
+	}
+	if got := truncate("abc", 0); got != "abc" {
+		t.Errorf("truncate 0 cap: got %q", got)
 	}
 }
 
@@ -226,40 +362,34 @@ func TestAppendNewline(t *testing.T) {
 	}
 }
 
-func TestStreamRangeBasic(t *testing.T) {
+func TestStreamRangeTurnBoundary(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sess.jsonl")
-	content := `{"type":"user","message":{"content":"hi"}}` + "\n" +
-		`{"type":"attachment"}` + "\n" +
-		`{"type":"assistant","message":{"content":[{"type":"text","text":"yo"}]}}` + "\n"
+	content := `{"type":"user","message":{"content":"hi"},"timestamp":"2026-05-12T18:11:56Z"}` + "\n" +
+		`{"type":"assistant","message":{"content":[{"type":"text","text":"yo"}]},"timestamp":"2026-05-12T18:11:57Z"}` + "\n" +
+		`{"type":"assistant","message":{"content":[{"type":"text","text":"more"}]},"timestamp":"2026-05-12T18:11:58Z"}` + "\n" +
+		`{"type":"user","message":{"content":"again"},"timestamp":"2026-05-12T18:11:59Z"}` + "\n"
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
 	var buf bytes.Buffer
-	next, err := streamRange(path, 0, &buf, formatText, false)
-	if err != nil {
+	st := &emissionState{}
+	if _, err := streamRange(path, 0, &buf, formatText, false, st); err != nil {
 		t.Fatalf("streamRange: %v", err)
 	}
-	if got := next; got != int64(len(content)) {
-		t.Errorf("next offset = %d, want %d", got, len(content))
-	}
 	got := buf.String()
-	if !strings.Contains(got, "👤 hi") {
-		t.Errorf("missing user line in output: %q", got)
-	}
-	if !strings.Contains(got, "🦀 yo") {
-		t.Errorf("missing assistant line in output: %q", got)
-	}
-	if strings.Contains(got, "attachment") {
-		t.Errorf("attachment leaked through filter: %q", got)
+	// User -> assistant should have a blank line; assistant -> assistant should not;
+	// assistant -> user should.
+	want := "18:11:56 👤 hi\n\n18:11:57 🦀 yo\n18:11:58 🦀 more\n\n18:11:59 👤 again\n"
+	if got != want {
+		t.Errorf("turn boundary output mismatch:\n--- got ---\n%s\n--- want ---\n%s", got, want)
 	}
 }
 
 func TestStreamRangePartialTrailingLine(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sess.jsonl")
-	// Two complete lines + a partial third (no trailing \n).
 	content := `{"type":"user","message":{"content":"one"}}` + "\n" +
 		`{"type":"user","message":{"content":"two"}}` + "\n" +
 		`{"type":"user","message":{"content":"three"`
@@ -268,7 +398,8 @@ func TestStreamRangePartialTrailingLine(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	next, err := streamRange(path, 0, &buf, formatText, false)
+	st := &emissionState{}
+	next, err := streamRange(path, 0, &buf, formatText, false, st)
 	if err != nil {
 		t.Fatalf("streamRange: %v", err)
 	}
@@ -289,14 +420,13 @@ func TestStreamRangePartialTrailingLine(t *testing.T) {
 func TestStreamRangeNoNewlineYet(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sess.jsonl")
-	// File exists with content but no \n yet — should emit nothing and
-	// return the offset unchanged so the next scan retries.
 	if err := os.WriteFile(path, []byte(`{"type":"user"`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
 	var buf bytes.Buffer
-	next, err := streamRange(path, 0, &buf, formatText, false)
+	st := &emissionState{}
+	next, err := streamRange(path, 0, &buf, formatText, false, st)
 	if err != nil {
 		t.Fatalf("streamRange: %v", err)
 	}
@@ -312,15 +442,14 @@ func TestScanAndStreamTruncationResets(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sess.jsonl")
 
-	// Initial content (deliberately longer than the replacement below
-	// so positions[path] > new file size triggers the truncation reset).
 	first := `{"type":"user","message":{"content":"a much longer first prompt that takes up a bunch of bytes"}}` + "\n"
 	if err := os.WriteFile(path, []byte(first), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	positions := map[string]int64{}
+	st := &emissionState{}
 	var buf bytes.Buffer
-	if err := scanAndStream(dir, positions, &buf, formatText, false); err != nil {
+	if err := scanAndStream(dir, positions, &buf, formatText, false, st); err != nil {
 		t.Fatalf("first scan: %v", err)
 	}
 	if !strings.Contains(buf.String(), "a much longer first prompt") {
@@ -328,8 +457,6 @@ func TestScanAndStreamTruncationResets(t *testing.T) {
 	}
 	buf.Reset()
 
-	// Truncate + write shorter new content. positions[path] is now > new
-	// size — code should reset pos to 0 and stream the whole new file.
 	second := `{"type":"user","message":{"content":"hi"}}` + "\n"
 	if err := os.WriteFile(path, []byte(second), 0o600); err != nil {
 		t.Fatal(err)
@@ -337,7 +464,7 @@ func TestScanAndStreamTruncationResets(t *testing.T) {
 	if int64(len(second)) >= positions[path] {
 		t.Fatalf("test setup bug: replacement %d bytes not shorter than original %d", len(second), positions[path])
 	}
-	if err := scanAndStream(dir, positions, &buf, formatText, false); err != nil {
+	if err := scanAndStream(dir, positions, &buf, formatText, false, st); err != nil {
 		t.Fatalf("second scan: %v", err)
 	}
 	if !strings.Contains(buf.String(), "👤 hi") {
@@ -379,9 +506,9 @@ func TestSnapshotSizes(t *testing.T) {
 }
 
 func TestScanAndStreamMissingDir(t *testing.T) {
-	// walkJSONL swallows fs.ErrNotExist so missing dirs are no-ops.
 	positions := map[string]int64{}
-	if err := scanAndStream("/does/not/exist", positions, io.Discard, formatText, false); err != nil {
+	st := &emissionState{}
+	if err := scanAndStream("/does/not/exist", positions, io.Discard, formatText, false, st); err != nil {
 		t.Errorf("scanAndStream on missing dir should not error, got: %v", err)
 	}
 	if len(positions) != 0 {

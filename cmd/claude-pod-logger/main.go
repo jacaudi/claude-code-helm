@@ -5,7 +5,8 @@
 // interval, picks up new files as they appear, and emits one entry per
 // detected line. By default it filters out noise (file-history snapshots,
 // attachment events, system events, meta lines) and renders the signal
-// (user prompts, assistant responses, summaries) as compact text. See
+// (user prompts, assistant responses, tool calls/results, summaries) as
+// compact text with timestamps and turn-boundary blank lines. See
 // --format json for structured output, --verbose for raw passthrough.
 //
 // Default behaviour skips the historical backlog at startup: files that
@@ -38,6 +39,12 @@ type format int
 const (
 	formatText format = iota
 	formatJSON
+)
+
+// Truncation caps applied to noisy fields in text mode.
+const (
+	toolInputMax  = 200
+	toolResultMax = 200
 )
 
 func parseFormat(s string) (format, error) {
@@ -100,6 +107,13 @@ func setupLogger() {
 	slog.SetDefault(slog.New(h))
 }
 
+// emissionState carries information about the previously-emitted line so
+// the renderer can inject visual separators (blank line on role change).
+// Single instance lives for the logger's lifetime; threaded through scan.
+type emissionState struct {
+	lastRole string
+}
+
 func run(ctx context.Context, dir string, interval time.Duration, tail bool, f format, verbose bool) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil && !errors.Is(err, fs.ErrPermission) {
 		slog.Warn("could not ensure log dir", "dir", dir, "err", err)
@@ -115,12 +129,13 @@ func run(ctx context.Context, dir string, interval time.Duration, tail bool, f f
 
 	out := bufio.NewWriter(os.Stdout)
 	defer out.Flush()
+	st := &emissionState{}
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {
-		if err := scanAndStream(dir, positions, out, f, verbose); err != nil {
+		if err := scanAndStream(dir, positions, out, f, verbose, st); err != nil {
 			slog.Warn("scan failed", "err", err)
 		}
 		if err := out.Flush(); err != nil {
@@ -146,7 +161,7 @@ func snapshotSizes(root string, positions map[string]int64) error {
 // scanAndStream walks root, finds every .jsonl file, parses the bytes
 // past the last-seen position, and emits filtered/rendered lines to w.
 // New files (not yet in positions) are streamed from offset 0.
-func scanAndStream(root string, positions map[string]int64, w io.Writer, f format, verbose bool) error {
+func scanAndStream(root string, positions map[string]int64, w io.Writer, f format, verbose bool, st *emissionState) error {
 	return walkJSONL(root, func(path string, info fs.FileInfo) {
 		size := info.Size()
 		pos := positions[path]
@@ -156,7 +171,7 @@ func scanAndStream(root string, positions map[string]int64, w io.Writer, f forma
 		if size <= pos {
 			return
 		}
-		next, err := streamRange(path, pos, w, f, verbose)
+		next, err := streamRange(path, pos, w, f, verbose, st)
 		if err != nil {
 			slog.Warn("read failed", "path", path, "err", err)
 			return
@@ -194,7 +209,7 @@ func walkJSONL(root string, visit func(path string, info fs.FileInfo)) error {
 // offset of the first byte after the last complete line — partial
 // trailing content (if any) is re-read on the next scan when it's
 // complete.
-func streamRange(path string, offset int64, w io.Writer, f format, verbose bool) (int64, error) {
+func streamRange(path string, offset int64, w io.Writer, f format, verbose bool, st *emissionState) (int64, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return offset, err
@@ -221,12 +236,22 @@ func streamRange(path string, offset int64, w io.Writer, f format, verbose bool)
 		if len(line) == 0 {
 			continue
 		}
-		rendered, emit := renderLine(line, f, verbose)
+		rendered, role, emit := renderLine(line, f, verbose)
 		if !emit {
 			continue
 		}
+		// Insert a blank line on role transitions in text mode so turns
+		// are visually separated. Doesn't apply to verbose or json.
+		if f == formatText && !verbose && st.lastRole != "" && role != "" && st.lastRole != role {
+			if _, err := w.Write([]byte{'\n'}); err != nil {
+				return offset, err
+			}
+		}
 		if _, err := w.Write(rendered); err != nil {
 			return offset, err
+		}
+		if role != "" {
+			st.lastRole = role
 		}
 	}
 
@@ -234,33 +259,41 @@ func streamRange(path string, offset int64, w io.Writer, f format, verbose bool)
 }
 
 // renderLine decides whether to emit a JSONL line and how to render it.
-// Returns (output bytes including trailing \n, true) to emit, or
-// (nil, false) to skip. Text prefixes: 👤 user, 🦀 assistant (Clawd,
-// Claude Code's mascot), 🔧 tool use, 📝 summary.
-func renderLine(line []byte, f format, verbose bool) ([]byte, bool) {
+// Returns (output bytes including trailing \n, role string, true) to
+// emit, or (nil, "", false) to skip. Role is one of "user", "assistant",
+// "summary", or "" for verbose passthrough / unrecognized lines.
+//
+// Text prefixes (with `HH:MM:SS ` timestamp prepended):
+//   - 👤 user prompt
+//   - 🦀 assistant text (Clawd)
+//   - 🔧 tool use (with truncated input)
+//   - ↩ tool result (with truncated content)
+//   - 📝 summary
+func renderLine(line []byte, f format, verbose bool) ([]byte, string, bool) {
 	if verbose {
-		return appendNewline(line), true
+		return appendNewline(line), "", true
 	}
 
 	var m map[string]any
 	if err := json.Unmarshal(line, &m); err != nil {
-		return nil, false
+		return nil, "", false
 	}
 	if !shouldEmit(m) {
-		return nil, false
+		return nil, "", false
 	}
+	role, _ := m["type"].(string)
 
 	switch f {
 	case formatJSON:
-		return appendNewline(line), true
+		return appendNewline(line), role, true
 	case formatText:
 		text := renderText(m)
 		if text == "" {
-			return nil, false
+			return nil, "", false
 		}
-		return []byte(text + "\n"), true
+		return []byte(text + "\n"), role, true
 	}
-	return nil, false
+	return nil, "", false
 }
 
 // shouldEmit returns true for JSONL entries that represent signal
@@ -280,11 +313,12 @@ func shouldEmit(m map[string]any) bool {
 }
 
 func renderText(m map[string]any) string {
+	ts := formatTimestamp(m["timestamp"])
 	switch typ, _ := m["type"].(string); typ {
 	case "user":
-		return renderUser(m)
+		return prefixLines(ts, renderUser(m))
 	case "assistant":
-		return renderAssistant(m)
+		return prefixLines(ts, renderAssistant(m))
 	case "summary":
 		s, _ := m["summary"].(string)
 		if s == "" {
@@ -293,11 +327,47 @@ func renderText(m map[string]any) string {
 		if s == "" {
 			return ""
 		}
-		return "📝 " + s
+		return prefixLines(ts, "📝 "+s)
 	}
 	return ""
 }
 
+// prefixLines prepends "<ts> " to each line of text. If ts is empty,
+// returns text unchanged. Returns "" when text is empty.
+func prefixLines(ts, text string) string {
+	if text == "" {
+		return ""
+	}
+	if ts == "" {
+		return text
+	}
+	lines := strings.Split(text, "\n")
+	pad := strings.Repeat(" ", len(ts)+1)
+	for i, l := range lines {
+		if i == 0 {
+			lines[i] = ts + " " + l
+		} else {
+			lines[i] = pad + l
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func formatTimestamp(v any) string {
+	s, _ := v.(string)
+	if s == "" {
+		return ""
+	}
+	t, err := time.Parse(time.RFC3339Nano, s)
+	if err != nil {
+		return ""
+	}
+	return t.UTC().Format("15:04:05")
+}
+
+// renderUser handles both bare-string user prompts (typed by the human)
+// and array-shaped tool_result blocks that Claude Code routes back to
+// the model as user-role messages. Tool results are rendered as `↩` lines.
 func renderUser(m map[string]any) string {
 	msg, _ := m["message"].(map[string]any)
 	if msg == nil {
@@ -310,10 +380,53 @@ func renderUser(m map[string]any) string {
 			return ""
 		}
 		return "👤 " + s
+	case []any:
+		var parts []string
+		for _, b := range c {
+			bb, _ := b.(map[string]any)
+			if t, _ := bb["type"].(string); t != "tool_result" {
+				continue
+			}
+			parts = append(parts, renderToolResult(bb))
+		}
+		nonEmpty := nonEmptyParts(parts)
+		if len(nonEmpty) == 0 {
+			return ""
+		}
+		return strings.Join(nonEmpty, "\n")
 	}
-	// Array-shaped content on the user side is almost always tool_result
-	// blocks routed back to the model — not signal worth showing.
 	return ""
+}
+
+func renderToolResult(b map[string]any) string {
+	isErr, _ := b["is_error"].(bool)
+	var summary string
+	switch c := b["content"].(type) {
+	case string:
+		summary = firstNonEmptyLine(c)
+	case []any:
+		// Sometimes structured: pick the first text-shaped block.
+		for _, sub := range c {
+			ss, _ := sub.(map[string]any)
+			if t, _ := ss["type"].(string); t == "text" {
+				if s, _ := ss["text"].(string); s != "" {
+					summary = firstNonEmptyLine(s)
+					break
+				}
+			}
+		}
+	}
+	summary = truncate(summary, toolResultMax)
+	if summary == "" {
+		if isErr {
+			return "↩ (empty error)"
+		}
+		return ""
+	}
+	if isErr {
+		return "↩ ERR: " + summary
+	}
+	return "↩ " + summary
 }
 
 func renderAssistant(m map[string]any) string {
@@ -331,13 +444,55 @@ func renderAssistant(m map[string]any) string {
 				parts = append(parts, "🦀 "+s)
 			}
 		case "tool_use":
-			name, _ := bb["name"].(string)
-			if name != "" {
-				parts = append(parts, "🔧 "+name)
-			}
+			parts = append(parts, renderToolUse(bb))
 		}
 	}
-	return strings.Join(parts, "\n")
+	return strings.Join(nonEmptyParts(parts), "\n")
+}
+
+func renderToolUse(b map[string]any) string {
+	name, _ := b["name"].(string)
+	if name == "" {
+		return ""
+	}
+	input := b["input"]
+	if input == nil {
+		return "🔧 " + name
+	}
+	raw, err := json.Marshal(input)
+	if err != nil || len(raw) == 0 || string(raw) == "{}" || string(raw) == "null" {
+		return "🔧 " + name
+	}
+	return "🔧 " + name + ": " + truncate(string(raw), toolInputMax)
+}
+
+// firstNonEmptyLine returns the first non-blank line of s, trimmed.
+// Used to keep tool-result rendering to a single log line.
+func firstNonEmptyLine(s string) string {
+	for _, ln := range strings.Split(s, "\n") {
+		ln = strings.TrimSpace(ln)
+		if ln != "" {
+			return ln
+		}
+	}
+	return ""
+}
+
+func truncate(s string, max int) string {
+	if max <= 0 || len(s) <= max {
+		return s
+	}
+	return s[:max] + "…"
+}
+
+func nonEmptyParts(parts []string) []string {
+	out := parts[:0]
+	for _, p := range parts {
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func appendNewline(b []byte) []byte {

@@ -43,19 +43,24 @@ Use `--verbose` to disable filtering entirely.
 
 ## Text format (default)
 
+Each emitted turn is prefixed with `HH:MM:SS` (UTC) parsed from the JSONL's `timestamp` field. A blank line is inserted on role changes so turns are visually separated. Multi-line assistant text is hanging-indented to align with the prefix.
+
 ```
-👤 hello, can you list the files here?
-🦀 Sure — let me check.
-🔧 LS
-🦀 You have three files: README.md, main.go, go.mod.
-📝 [session summary] ...
+18:11:56 👤 list the files here
+
+18:11:57 🔧 LS: {"path":"/home/claude/projects"}
+18:11:58 ↩ README.md  main.go  go.mod
+
+18:11:59 🦀 You have three files: README.md, main.go, go.mod. They look like a
+         small Go binary plus a README. Want me to read main.go?
 ```
 
 | Prefix | Meaning |
 |---|---|
 | `👤` | User prompt |
 | `🦀` | Assistant text (Clawd, the Claude Code mascot) |
-| `🔧` | Assistant tool use |
+| `🔧` | Assistant tool use, with the JSON-serialized input truncated to 200 chars |
+| `↩` | Tool result (first non-empty line, truncated to 200 chars). Errors render as `↩ ERR: ...`. |
 | `📝` | Session summary |
 
 ## JSON format
