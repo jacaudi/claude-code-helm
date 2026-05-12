@@ -3,7 +3,7 @@ name: claude-pod
 description: Run Claude Code in Kubernetes as a long-lived pod with persistent HOME, built on the bjw-s common library chart
 type: application
 version: 0.2.0
-appVersion: "2.1.37"
+appVersion: "0.2.0"
 kubeVersion: ">=1.28.0-0"
 keywords:
   - claude
