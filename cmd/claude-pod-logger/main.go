@@ -235,7 +235,8 @@ func streamRange(path string, offset int64, w io.Writer, f format, verbose bool)
 
 // renderLine decides whether to emit a JSONL line and how to render it.
 // Returns (output bytes including trailing \n, true) to emit, or
-// (nil, false) to skip.
+// (nil, false) to skip. Text prefixes: 👤 user, `<` assistant text,
+// 🔧 tool use, 📝 summary.
 func renderLine(line []byte, f format, verbose bool) ([]byte, bool) {
 	if verbose {
 		return appendNewline(line), true
@@ -292,7 +293,7 @@ func renderText(m map[string]any) string {
 		if s == "" {
 			return ""
 		}
-		return "[summary] " + s
+		return "📝 " + s
 	}
 	return ""
 }
@@ -308,7 +309,7 @@ func renderUser(m map[string]any) string {
 		if s == "" {
 			return ""
 		}
-		return "> " + s
+		return "👤 " + s
 	}
 	// Array-shaped content on the user side is almost always tool_result
 	// blocks routed back to the model — not signal worth showing.
@@ -332,7 +333,7 @@ func renderAssistant(m map[string]any) string {
 		case "tool_use":
 			name, _ := bb["name"].(string)
 			if name != "" {
-				parts = append(parts, "· tool: "+name)
+				parts = append(parts, "🔧 "+name)
 			}
 		}
 	}
