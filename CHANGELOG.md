@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/jacaudi/claude-code-helm/compare/v0.3.0...v0.3.1) (2026-05-12)
+
+### Bug Fixes
+
+* **chart:** default image.tag to .Chart.AppVersion ([024e59b](https://github.com/jacaudi/claude-code-helm/commit/024e59b95c33fcabde47a5d9741a501dc145635d))
+* **ci:** allow workflow_dispatch to trigger semantic-release ([c9cd4e7](https://github.com/jacaudi/claude-code-helm/commit/c9cd4e74df975fdbd5580b55e291189263b7804d))
+
 ## [0.3.0](https://github.com/jacaudi/claude-code-helm/compare/v0.2.2...v0.3.0) (2026-05-12)
 
 ### Bug Fixes
