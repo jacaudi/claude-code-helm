@@ -5,6 +5,7 @@ type: application
 version: 0.7.1
 appVersion: "v0.7.1"
 kubeVersion: ">=1.28.0-0"
+icon: https://raw.githubusercontent.com/jacaudi/claude-pod/main/charts/claude-pod/icon.png
 keywords:
   - claude
   - claude-code
