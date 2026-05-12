@@ -149,6 +149,11 @@ RUN printf '%s\n' \
 # launched detached so log streaming becomes PID 1; users attach to the
 # already-running session with `kubectl exec -- claude-tmux`.
 #
+# If /etc/claude-pod/mcp.json exists (e.g. mounted from a ConfigMap),
+# its `mcpServers` block is merged into ~/.claude.json's top-level
+# `mcpServers` field (preserving everything else Claude writes there).
+# settings.json doesn't accept mcpServers; ~/.claude.json does.
+#
 # No supervision: if claude exits, the tmux session ends. Run
 # `claude-tmux` to start a new one.
 RUN printf '%s\n' \
@@ -159,6 +164,14 @@ RUN printf '%s\n' \
       '  [ -d "$d" ] || mkdir -p "$d" 2>/dev/null || true' \
       'done' \
       '[ -L "$HOME/.local/bin/claude" ] || ln -sf /usr/local/bin/claude "$HOME/.local/bin/claude" 2>/dev/null || true' \
+      'if [ -f /etc/claude-pod/mcp.json ]; then' \
+      '  TMP=$(mktemp /tmp/cpi-mcp.XXXXXX)' \
+      '  if [ -f "$HOME/.claude.json" ]; then' \
+      '    jq --slurpfile mcp /etc/claude-pod/mcp.json ".mcpServers = \$mcp[0].mcpServers" "$HOME/.claude.json" > "$TMP" && mv "$TMP" "$HOME/.claude.json"' \
+      '  else' \
+      '    cp /etc/claude-pod/mcp.json "$HOME/.claude.json"' \
+      '  fi' \
+      'fi' \
       'if ! tmux has-session -t claude 2>/dev/null; then' \
       '  tmux new-session -d -s claude -c "$WORK_DIR" claude' \
       'fi' \
