@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.0](https://github.com/jacaudi/claude-code-helm/compare/v0.3.2...v0.4.0) (2026-05-12)
+
+### Features
+
+* **claude-pod:** add claude-pod-logger and use it as default command ([1966839](https://github.com/jacaudi/claude-code-helm/commit/1966839093d216c7ce94380789a4f120890a6c96))
+
 ## [0.3.2](https://github.com/jacaudi/claude-code-helm/compare/v0.3.1...v0.3.2) (2026-05-12)
 
 ### Bug Fixes
