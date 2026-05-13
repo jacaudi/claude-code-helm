@@ -15,6 +15,7 @@ Multi-arch (`linux/amd64`, `linux/arm64`) with SBOM + provenance attestations fr
 | `claude-pod-init` | `/usr/local/bin/claude-pod-init` | Pod entrypoint. Starts `claude` in a detached tmux session at `$CLAUDE_WORK_DIR` (default `~/projects`), then execs `claude-pod-logger`. Chart's default `command`. See [tmux.md](tmux.md). |
 | `claude-tmux` | `/usr/local/bin/claude-tmux` | Interactive wrapper. Attaches to the `claude-pod-init`-started session, or creates one. Used by `kubectl exec`. See [tmux.md](tmux.md). |
 | `claude-pod-logger` | `/usr/local/bin/claude-pod-logger` | Streams Claude's per-session JSONL files to stdout. The image's literal `CMD`, and what `claude-pod-init` execs into. See [logger.md](logger.md). |
+| `claude-pod-config` | `/usr/local/bin/claude-pod-config` | Overlays JSON config fragments (ConfigMap-mounted at `/etc/claude-pod/{mcp,settings}.json`) onto Claude Code's writable home-dir state at boot. Top-level shallow merge: source keys overwrite, dest keys not in source are preserved. Invoked by `claude-pod-init`. |
 | `go` / `gofmt` | `/usr/local/go/bin/` | Pulled `COPY --from=golang:VERSION-alpine`. `GOROOT=/usr/local/go`, `GOPATH=/home/claude/.go`. |
 | `uv` / `uvx` | `/usr/local/bin/` | Pulled `COPY --from=ghcr.io/astral-sh/uv`. Use `uv python install` to get a Python (none is pre-installed). |
 | `bun` / `bunx` | `/usr/local/bin/` | Pulled `COPY --from=docker.io/oven/bun`. `bunx` is a symlink to `bun`. |
@@ -69,4 +70,5 @@ Multi-arch (`linux/amd64,linux/arm64`) goes through `docker buildx`; CI does thi
 3. **`uv-source`** (`ghcr.io/astral-sh/uv:VERSION`) — same; distroless source.
 4. **`bun-source`** (`oven/bun:VERSION`) — same.
 5. **`logger-build`** (`golang:VERSION-alpine`) — compiles `claude-pod-logger` (`CGO_ENABLED=0 -trimpath -ldflags='-s -w'`).
-6. **Final** (`debian:trixie-XXX-slim`) — apt install, `COPY --from=` each prior stage, drop `claude` user, set env.
+6. **`config-build`** (`golang:VERSION-alpine`) — compiles `claude-pod-config` (`CGO_ENABLED=0 -trimpath -ldflags='-s -w'`).
+7. **Final** (`debian:trixie-XXX-slim`) — apt install, `COPY --from=` each prior stage, drop `claude` user, set env.

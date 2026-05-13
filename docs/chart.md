@@ -59,7 +59,18 @@ Common overrides:
 --set persistence.home.enabled=false              # ephemeral home (re-auth every restart)
 ```
 
-Mount additional ConfigMaps/secrets via `persistence.<name>` — e.g., the home-ops deployment mounts a rules ConfigMap at `~/.claude/rules/` and a settings ConfigMap subPath-mounted at `~/.claude/settings.json`.
+Mount additional ConfigMaps/secrets via `persistence.<name>` — e.g., the home-ops deployment mounts a rules ConfigMap at `~/.claude/rules/`.
+
+### MCP servers and settings.json overlays
+
+For `settings.json` and MCP server configuration, mount the ConfigMap at `/etc/claude-pod/` instead of overwriting Claude's writable files directly. On boot, `claude-pod-init` runs `claude-pod-config merge` against each fragment, overlaying its top-level keys onto Claude Code's state (so anything Claude itself writes is preserved):
+
+| Source (ConfigMap mount) | Destination | Typical contents |
+|---|---|---|
+| `/etc/claude-pod/mcp.json` | `~/.claude.json` | `{"mcpServers": {...}}` |
+| `/etc/claude-pod/settings.json` | `~/.claude/settings.json` | `{"permissions": {...}, "env": {...}, "model": "...", ...}` |
+
+The merge is a top-level shallow assignment: each key in the source replaces the same key in the destination wholesale (it is not a deep merge — supply the full value you want for each top-level key). Both sources are optional; absent files are skipped.
 
 ## Credentials
 

@@ -24,9 +24,15 @@ jobs:
   go-test:
     name: Go (test + vet + scan)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - claude-pod-logger
+          - claude-pod-config
     defaults:
       run:
-        working-directory: cmd/claude-pod-logger
+        working-directory: cmd/${{ matrix.module }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -34,7 +40,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version-file: cmd/claude-pod-logger/go.mod
+          go-version-file: cmd/${{ matrix.module }}/go.mod
           cache: false   # no external deps yet — no go.sum to key on
 
       - name: go test
@@ -43,15 +49,19 @@ jobs:
       - name: go vet
         run: go vet ./...
 
+      # repo-checkout: false — the job already ran actions/checkout
+      # above; letting the action re-checkout produces a duplicate
+      # Authorization header that GitHub rejects with HTTP 400.
       - name: govulncheck
         uses: golang/govulncheck-action@v1
         with:
-          work-dir: cmd/claude-pod-logger
+          work-dir: cmd/${{ matrix.module }}
+          repo-checkout: false
 
       - name: gosec
         uses: securego/gosec@v2.26.1
         with:
-          args: ./cmd/claude-pod-logger/...
+          args: ./cmd/${{ matrix.module }}/...
 
   helm-render:
     name: Helm template + kubeconform
@@ -71,9 +81,14 @@ jobs:
           curl -fsSL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
             | tar -xz -C /usr/local/bin kubeconform
 
+      # Chart deps are vendored at charts/claude-pod/charts/*.tgz (see
+      # .gitignore), so we skip `helm dependency build` — it would require
+      # registering the upstream repo via `helm repo add` even with a
+      # matching .tgz already present, and we don't want CI to depend on
+      # the network for that.
+
       - name: helm template + kubeconform (default values)
         run: |
-          helm dependency build charts/claude-pod
           helm template t charts/claude-pod | kubeconform -strict -summary -ignore-missing-schemas
 
       - name: helm template + kubeconform (ci/test-values)

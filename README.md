@@ -61,7 +61,7 @@ If you want to build the image and chart yourself rather than pull the published
 
 - Docker `buildx` (for multi-arch container builds)
 - `helm` CLI 3.8+
-- `go` 1.24+ (to compile `claude-pod-logger`, embedded into the image — but the multi-stage build does this for you; you don't need Go installed unless you run the binary outside the image)
+- `go` 1.24+ (to compile `claude-pod-logger` and `claude-pod-config`, embedded into the image — but the multi-stage build does this for you; you don't need Go installed unless you run the binaries outside the image)
 
 See [docs/image.md](docs/image.md) and [docs/release.md](docs/release.md) for the build/release plumbing.
 
