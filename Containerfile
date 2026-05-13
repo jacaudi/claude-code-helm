@@ -16,7 +16,7 @@ ARG GO_VERSION=1.26.3
 ARG UV_VERSION=0.11.13
 
 # renovate: datasource=docker depName=oven/bun
-ARG BUN_VERSION=1.3.13
+ARG BUN_VERSION=1.3.14
 
 ############################################
 # Stage 1: fetch and verify Claude Code
