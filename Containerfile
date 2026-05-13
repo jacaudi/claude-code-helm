@@ -4,7 +4,7 @@
 ARG DEBIAN_VERSION=trixie-20260505-slim
 
 # renovate: datasource=docker depName=alpine
-ARG ALPINE_VERSION=3.21
+ARG ALPINE_VERSION=3.23
 
 # renovate: datasource=npm depName=@anthropic-ai/claude-code
 ARG CLAUDE_CODE_VERSION=2.1.139
