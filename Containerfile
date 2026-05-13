@@ -61,6 +61,14 @@ COPY cmd/claude-pod-logger/go.mod cmd/claude-pod-logger/main.go ./
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/claude-pod-logger .
 
 ############################################
+# Stage 3b: build claude-pod-config
+############################################
+FROM public.ecr.aws/docker/library/golang:${GO_VERSION}-alpine AS config-build
+WORKDIR /src
+COPY cmd/claude-pod-config/go.mod cmd/claude-pod-config/main.go ./
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/claude-pod-config .
+
+############################################
 # Stage 4: final runtime image
 ############################################
 FROM public.ecr.aws/docker/library/debian:${DEBIAN_VERSION}
@@ -114,6 +122,12 @@ COPY --from=claude-fetcher /out/claude /usr/local/bin/claude
 # Claude activity is visible in `kubectl logs`. tmux-independent.
 COPY --from=logger-build /out/claude-pod-logger /usr/local/bin/claude-pod-logger
 
+# claude-pod-config — overlays JSON config fragments mounted from
+# Kubernetes ConfigMaps onto Claude Code's writable home-dir files
+# (~/.claude.json, ~/.claude/settings.json). Replaces the earlier
+# jq-based merge in claude-pod-init.
+COPY --from=config-build /out/claude-pod-config /usr/local/bin/claude-pod-config
+
 # System-wide tmux config — recommended settings for Claude Code per
 # https://code.claude.com/docs/en/terminal-config.md#configure-tmux
 # Lives at /etc to survive the PVC mount over /home/claude.
@@ -149,10 +163,11 @@ RUN printf '%s\n' \
 # launched detached so log streaming becomes PID 1; users attach to the
 # already-running session with `kubectl exec -- claude-tmux`.
 #
-# If /etc/claude-pod/mcp.json exists (e.g. mounted from a ConfigMap),
-# its `mcpServers` block is merged into ~/.claude.json's top-level
-# `mcpServers` field (preserving everything else Claude writes there).
-# settings.json doesn't accept mcpServers; ~/.claude.json does.
+# If ConfigMap-mounted fragments exist under /etc/claude-pod/, their
+# top-level keys are overlaid onto Claude Code's writable state via
+# claude-pod-config (anything Claude itself writes is preserved):
+#   /etc/claude-pod/mcp.json      → ~/.claude.json
+#   /etc/claude-pod/settings.json → ~/.claude/settings.json
 #
 # No supervision: if claude exits, the tmux session ends. Run
 # `claude-tmux` to start a new one.
@@ -165,12 +180,10 @@ RUN printf '%s\n' \
       'done' \
       '[ -L "$HOME/.local/bin/claude" ] || ln -sf /usr/local/bin/claude "$HOME/.local/bin/claude" 2>/dev/null || true' \
       'if [ -f /etc/claude-pod/mcp.json ]; then' \
-      '  TMP=$(mktemp /tmp/cpi-mcp.XXXXXX)' \
-      '  if [ -f "$HOME/.claude.json" ]; then' \
-      '    jq --slurpfile mcp /etc/claude-pod/mcp.json ".mcpServers = \$mcp[0].mcpServers" "$HOME/.claude.json" > "$TMP" && mv "$TMP" "$HOME/.claude.json"' \
-      '  else' \
-      '    cp /etc/claude-pod/mcp.json "$HOME/.claude.json"' \
-      '  fi' \
+      '  claude-pod-config merge /etc/claude-pod/mcp.json "$HOME/.claude.json" || true' \
+      'fi' \
+      'if [ -f /etc/claude-pod/settings.json ]; then' \
+      '  claude-pod-config merge /etc/claude-pod/settings.json "$HOME/.claude/settings.json" || true' \
       'fi' \
       'if ! tmux has-session -t claude 2>/dev/null; then' \
       '  tmux new-session -d -s claude -c "$WORK_DIR" claude' \

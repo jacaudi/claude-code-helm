@@ -1,5 +1,6 @@
 # Local Go build artifacts (each cmd/X dir produces a binary named X)
 cmd/claude-pod-logger/claude-pod-logger
+cmd/claude-pod-config/claude-pod-config
 
 # (Helm chart dependencies are vendored under charts/<chart>/charts/ and
 # committed so `helm lint` and `helm package` don't need network access.)
