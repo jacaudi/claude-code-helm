@@ -88,7 +88,7 @@ func mergeFile(srcPath, dstPath string) error {
 		dst[k] = v
 	}
 
-	if err := os.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dstPath), 0o700); err != nil {
 		return fmt.Errorf("create destination directory: %w", err)
 	}
 	return writeJSONAtomic(dstPath, dst)
@@ -98,6 +98,8 @@ func mergeFile(srcPath, dstPath string) error {
 // `null` or non-object top-level value is rejected so we don't silently
 // nuke the destination on bad input.
 func readJSONObject(path string) (map[string]any, error) {
+	// #nosec G304 -- path is the operand of the `merge SRC DST` subcommand;
+	// reading caller-supplied paths is the entire contract of this tool.
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -134,7 +136,7 @@ func writeJSONAtomic(path string, v any) (retErr error) {
 		tmp.Close()
 		return fmt.Errorf("encode: %w", err)
 	}
-	if err := tmp.Chmod(0o644); err != nil {
+	if err := tmp.Chmod(0o600); err != nil {
 		tmp.Close()
 		return fmt.Errorf("chmod temp: %w", err)
 	}

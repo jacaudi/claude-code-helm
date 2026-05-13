@@ -13,7 +13,7 @@ import (
 func writeFile(t *testing.T, dir, name, data string) string {
 	t.Helper()
 	p := filepath.Join(dir, name)
-	if err := os.WriteFile(p, []byte(data), 0o644); err != nil {
+	if err := os.WriteFile(p, []byte(data), 0o600); err != nil {
 		t.Fatalf("write %s: %v", p, err)
 	}
 	return p
