@@ -69,6 +69,14 @@ COPY cmd/claude-pod-config/go.mod cmd/claude-pod-config/main.go ./
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/claude-pod-config .
 
 ############################################
+# Stage 3c: build claude-pod-init
+############################################
+FROM public.ecr.aws/docker/library/golang:${GO_VERSION}-alpine AS init-build
+WORKDIR /src
+COPY cmd/claude-pod-init/go.mod cmd/claude-pod-init/main.go ./
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/claude-pod-init .
+
+############################################
 # Stage 4: final runtime image
 ############################################
 FROM public.ecr.aws/docker/library/debian:${DEBIAN_VERSION}
@@ -124,9 +132,27 @@ COPY --from=logger-build /out/claude-pod-logger /usr/local/bin/claude-pod-logger
 
 # claude-pod-config — overlays JSON config fragments mounted from
 # Kubernetes ConfigMaps onto Claude Code's writable home-dir files
-# (~/.claude.json, ~/.claude/settings.json). Replaces the earlier
-# jq-based merge in claude-pod-init.
+# (~/.claude.json, ~/.claude/settings.json). Invoked by claude-pod-init.
 COPY --from=config-build /out/claude-pod-config /usr/local/bin/claude-pod-config
+
+# claude-pod-init — the container's startup binary. Sets up the
+# writable home tree, overlays /etc/claude-pod/*.json fragments onto
+# Claude's writable state, launches `claude` inside a persistent tmux
+# session named "claude", and execs claude-pod-logger so the pod's
+# PID 1 becomes the JSONL log streamer.
+#
+# Two modes selected by argv[0]:
+#   - claude-pod-init: boot path (detached tmux + exec logger).
+#   - claude-tmux:     interactive entry (tmux new-session -A) used by
+#                      `kubectl exec` / `docker exec`.
+#
+# Both auto mode (`--permission-mode auto`) and remote control
+# (`--remote-control`) are enabled by default; override per-deployment
+# with CLAUDE_POD_AUTO=0 / CLAUDE_POD_REMOTE_CONTROL=0 or per-invocation
+# with `claude-tmux --no-auto --no-rc`. Extra args pass through to
+# claude.
+COPY --from=init-build /out/claude-pod-init /usr/local/bin/claude-pod-init
+RUN ln -sf /usr/local/bin/claude-pod-init /usr/local/bin/claude-tmux
 
 # System-wide tmux config — recommended settings for Claude Code per
 # https://code.claude.com/docs/en/terminal-config.md#configure-tmux
@@ -136,61 +162,6 @@ RUN printf '%s\n' \
       'set -s extended-keys on' \
       'set -as terminal-features "xterm*:extkeys"' \
       > /etc/tmux.conf
-
-# claude-tmux — interactive entrypoint. Runs (or reattaches to) Claude
-# Code inside a persistent tmux session. Detach with Ctrl-b d; reattach
-# by re-running this command. Extra args pass through to claude.
-#
-# Defaults the session's working directory to CLAUDE_WORK_DIR (default
-# $HOME/projects) so Claude treats it as a project. mkdir -p so the
-# directory exists on first run with a fresh PVC. Also (re)creates the
-# ~/.local/bin/claude symlink — Claude Code's "native install"
-# self-check expects to find the binary there.
-RUN printf '%s\n' \
-      '#!/bin/bash' \
-      'WORK_DIR="${CLAUDE_WORK_DIR:-$HOME/projects}"' \
-      'for d in "$WORK_DIR" "$HOME/.claude" "$HOME/.local/bin"; do' \
-      '  [ -d "$d" ] || mkdir -p "$d"' \
-      'done' \
-      '[ -L "$HOME/.local/bin/claude" ] || ln -sf /usr/local/bin/claude "$HOME/.local/bin/claude"' \
-      'exec tmux new-session -A -s claude -c "$WORK_DIR" claude "$@"' \
-      > /usr/local/bin/claude-tmux \
- && chmod 0755 /usr/local/bin/claude-tmux
-
-# claude-pod-init — pod entrypoint that starts the claude tmux session
-# at boot and then hands stdout/stderr to claude-pod-logger. Wires up
-# the same WORK_DIR + symlink setup claude-tmux does. The session is
-# launched detached so log streaming becomes PID 1; users attach to the
-# already-running session with `kubectl exec -- claude-tmux`.
-#
-# If ConfigMap-mounted fragments exist under /etc/claude-pod/, their
-# top-level keys are overlaid onto Claude Code's writable state via
-# claude-pod-config (anything Claude itself writes is preserved):
-#   /etc/claude-pod/mcp.json      → ~/.claude.json
-#   /etc/claude-pod/settings.json → ~/.claude/settings.json
-#
-# No supervision: if claude exits, the tmux session ends. Run
-# `claude-tmux` to start a new one.
-RUN printf '%s\n' \
-      '#!/bin/bash' \
-      'set -u' \
-      'WORK_DIR="${CLAUDE_WORK_DIR:-$HOME/projects}"' \
-      'for d in "$WORK_DIR" "$HOME/.claude" "$HOME/.local/bin"; do' \
-      '  [ -d "$d" ] || mkdir -p "$d" 2>/dev/null || true' \
-      'done' \
-      '[ -L "$HOME/.local/bin/claude" ] || ln -sf /usr/local/bin/claude "$HOME/.local/bin/claude" 2>/dev/null || true' \
-      'if [ -f /etc/claude-pod/mcp.json ]; then' \
-      '  claude-pod-config merge /etc/claude-pod/mcp.json "$HOME/.claude.json" || true' \
-      'fi' \
-      'if [ -f /etc/claude-pod/settings.json ]; then' \
-      '  claude-pod-config merge /etc/claude-pod/settings.json "$HOME/.claude/settings.json" || true' \
-      'fi' \
-      'if ! tmux has-session -t claude 2>/dev/null; then' \
-      '  tmux new-session -d -s claude -c "$WORK_DIR" claude' \
-      'fi' \
-      'exec claude-pod-logger "$@"' \
-      > /usr/local/bin/claude-pod-init \
- && chmod 0755 /usr/local/bin/claude-pod-init
 
 # Same setup for interactive shell entry (`docker exec -it ... zsh`,
 # `... bash`), so users who skip claude-tmux still get the symlink.
