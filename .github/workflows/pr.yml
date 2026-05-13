@@ -30,6 +30,7 @@ jobs:
         module:
           - claude-pod-logger
           - claude-pod-config
+          - claude-pod-init
     defaults:
       run:
         working-directory: cmd/${{ matrix.module }}

@@ -12,8 +12,8 @@ Multi-arch (`linux/amd64`, `linux/arm64`) with SBOM + provenance attestations fr
 | Tool | Path | Notes |
 |---|---|---|
 | `claude` | `/usr/local/bin/claude` | Native binary, SHA-verified at build time against Anthropic's per-release `manifest.json`. Symlinked at runtime into `~/.local/bin/claude` so Claude Code's "native install" self-check is happy. |
-| `claude-pod-init` | `/usr/local/bin/claude-pod-init` | Pod entrypoint. Starts `claude` in a detached tmux session at `$CLAUDE_WORK_DIR` (default `~/projects`), then execs `claude-pod-logger`. Chart's default `command`. See [tmux.md](tmux.md). |
-| `claude-tmux` | `/usr/local/bin/claude-tmux` | Interactive wrapper. Attaches to the `claude-pod-init`-started session, or creates one. Used by `kubectl exec`. See [tmux.md](tmux.md). |
+| `claude-pod-init` | `/usr/local/bin/claude-pod-init` | Pod entrypoint. Starts `claude` (with `--permission-mode auto --remote-control` by default) in a detached tmux session at `$CLAUDE_WORK_DIR` (default `~/projects`), then execs `claude-pod-logger`. Chart's default `command`. See [tmux.md](tmux.md). |
+| `claude-tmux` | symlink → `claude-pod-init` | Interactive wrapper. Same Go binary; `argv[0]` selects "attach to existing session or create one" mode. Used by `kubectl exec`. See [tmux.md](tmux.md). |
 | `claude-pod-logger` | `/usr/local/bin/claude-pod-logger` | Streams Claude's per-session JSONL files to stdout. The image's literal `CMD`, and what `claude-pod-init` execs into. See [logger.md](logger.md). |
 | `claude-pod-config` | `/usr/local/bin/claude-pod-config` | Overlays JSON config fragments (ConfigMap-mounted at `/etc/claude-pod/{mcp,settings}.json`) onto Claude Code's writable home-dir state at boot. Top-level shallow merge: source keys overwrite, dest keys not in source are preserved. Invoked by `claude-pod-init`. |
 | `go` / `gofmt` | `/usr/local/go/bin/` | Pulled `COPY --from=golang:VERSION-alpine`. `GOROOT=/usr/local/go`, `GOPATH=/home/claude/.go`. |
