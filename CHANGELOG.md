@@ -1,5 +1,7 @@
 # Changelog
 
+## [0.11.1](https://github.com/jacaudi/claude-pod/compare/v0.11.0...v0.11.1) (2026-05-13)
+
 ## [0.11.0](https://github.com/jacaudi/claude-pod/compare/v0.10.0...v0.11.0) (2026-05-12)
 
 ### Features
