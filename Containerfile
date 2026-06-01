@@ -13,7 +13,7 @@ ARG CLAUDE_CODE_VERSION=2.1.139
 ARG GO_VERSION=1.26.3
 
 # renovate: datasource=docker depName=ghcr.io/astral-sh/uv
-ARG UV_VERSION=0.11.13
+ARG UV_VERSION=0.11.18
 
 # renovate: datasource=docker depName=oven/bun
 ARG BUN_VERSION=1.3.13
