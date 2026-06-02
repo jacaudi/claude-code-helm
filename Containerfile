@@ -7,7 +7,7 @@ ARG DEBIAN_VERSION=trixie-20260505-slim
 ARG ALPINE_VERSION=3.21
 
 # renovate: datasource=npm depName=@anthropic-ai/claude-code
-ARG CLAUDE_CODE_VERSION=2.1.139
+ARG CLAUDE_CODE_VERSION=2.1.160
 
 # renovate: datasource=docker depName=golang
 ARG GO_VERSION=1.26.3
